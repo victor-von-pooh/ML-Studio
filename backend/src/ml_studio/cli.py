@@ -84,8 +84,13 @@ def main() -> None:
 
     # 起動ごとのトークン付きの URL の表示
     # (全てのアドレスで待ち受ける場合も手元のブラウザで開ける URL)
+    # 段階のアプリが起動を止める場合 (読めない自作の部品など) の理由の表示
     hosts = allowed_hosts(args.host, args.allowed_host)
-    app = create_app(token=get_token(None), allowed_hosts=hosts)
+    try:
+        app = create_app(token=get_token(None), allowed_hosts=hosts)
+    except ValueError as error:
+        print(f"起動できません: {error}", flush=True)
+        raise SystemExit(1) from error
     shown = "127.0.0.1" if args.host in ANY_HOSTS else args.host
     if ":" in shown:
         # URL の中の IPv6 のアドレスの角括弧での囲み

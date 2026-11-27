@@ -121,7 +121,7 @@ def create_api(
 
 殻はサーバーの側に自分の置き場を持たない (選んだプロジェクトと明暗は画面の `localStorage` に持つ).
 
-- 各アプリの置き場 (`data_dir`) は渡さず, 各アプリの既定 (環境変数かホームの下) のままにする (単独で作ったものを殻でも, 殻で作ったものを単独でも開けるようにするため). ML-Pathfinder は `ML_PATHFINDER_HOME` か `~/.ml-pathfinder/`, ML-Fathom は `ML_FATHOM_HOME` か `~/.ml-fathom/`, ML-CreateArchitecture は `ML_CREATEARCHITECTURE_HOME` か `~/.ml-createarchitecture/`. ML-CreateArchitecture の自作の部品 (`modules`) も渡さず, その既定 (起動の設定 `ML_CREATEARCHITECTURE_MODULES`) のままにする
+- 各アプリの置き場 (`data_dir`) は渡さず, 各アプリの既定 (環境変数かホームの下) のままにする (単独で作ったものを殻でも, 殻で作ったものを単独でも開けるようにするため). ML-Pathfinder は `ML_PATHFINDER_HOME` か `~/.ml-pathfinder/`, ML-Fathom は `ML_FATHOM_HOME` か `~/.ml-fathom/`, ML-CreateArchitecture は `ML_CREATEARCHITECTURE_HOME` か `~/.ml-createarchitecture/`. ML-CreateArchitecture の自作の部品 (`modules`) も渡さず, その既定 (起動の設定 `ML_CREATEARCHITECTURE_MODULES`) のままにする. 殻は ML-CreateArchitecture の extra のうち `project` だけを入れるので, 外部のライブラリの部品 (huggingface, timm, torchvision など) は殻では使えず, 部品の一覧で使えないと出る (殻の 1 つの環境を軽く保つため)
 - 問題の設定の置き場は, 殻が ML-Pathfinder の `create_api()` を先に呼び, その `app.state.problems_dir` を他の 4 つのアプリの `create_api` に `problems_dir` として渡す (場所を決めるのを ML-Pathfinder だけにし, 殻が中の作りに頼らず, アプリごとに場所が食い違わないようにするため)
 
 ## 7. 安全
@@ -135,7 +135,7 @@ def create_api(
 
 ## 8. 起動と載せ方
 
-- 起動は 1 つのコマンド `ml-studio` (`--host`, `--port`, `--allowed-host`, 各アプリ固有の引数). 起動するとトークン付きの `/api/auth` の URL を出す
+- 起動は 1 つのコマンド `ml-studio` (`--host`, `--port`, `--allowed-host`). 各アプリの設定は各アプリの環境変数のまま (6 の節). 起動するとトークン付きの `/api/auth` の URL を出す. 段階のアプリが起動を止めた場合 (読めない自作の部品など) は, 理由を出して終わる
 - 1 つのプロセス (worker 1 つ) で動かす. 学習・評価の段階のジョブの管理と, 起動時に部品を入れる登録簿がプロセスの中の状態のため
 - 自作の部品の登録簿 (ML-ModelControl の登録簿) はプロセスに 1 つで, 部品を入れるアプリ (モデルの作成・選定の段階, 推論の段階) の間で共有になる. 同じモジュールは 1 度だけ入る. 同じ部品の名前を別々のモジュールで宣言すると, 後から `create_api` を呼んだアプリ (段階の並びの後ろ) が起動を止める. モデルの作成・選定の段階の部品の一覧は登録簿の全体を出すので, 他のアプリが入れた部品も出る
 - 殻は 5 つのアプリの `create_api` を段階の並びの順に 1 度ずつ呼んで mount する. ML-Pathfinder を先に呼び, その問題の設定の置き場を他に渡す (6 の節). 各アプリの例外ハンドラ, 子プロセス, スレッドは mount した sub-app の中でそのまま動く

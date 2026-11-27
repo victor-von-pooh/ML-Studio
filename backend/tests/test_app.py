@@ -69,6 +69,7 @@ def app_client(
     monkeypatch.setenv(
         "ML_CREATEARCHITECTURE_HOME", str(tmp_path / "createarchitecture")
     )
+    monkeypatch.delenv("ML_CREATEARCHITECTURE_MODULES", raising=False)
     app = create_app(
         token=TOKEN, allowed_hosts=["testserver"], static_dir=static_dir
     )
@@ -507,6 +508,7 @@ def test_without_frontend(
     monkeypatch.setenv(
         "ML_CREATEARCHITECTURE_HOME", str(tmp_path / "createarchitecture")
     )
+    monkeypatch.delenv("ML_CREATEARCHITECTURE_MODULES", raising=False)
     app = create_app(
         token=TOKEN, allowed_hosts=["testserver"],
         static_dir=tmp_path / "empty"

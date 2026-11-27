@@ -20,7 +20,7 @@ make serve   # 画面をビルドして http://127.0.0.1:8760 で起動 (Ctrl+C 
 
 起動すると `ML-Studio を開く: http://127.0.0.1:8760/api/auth?token=...` の行が出るので, その URL をブラウザで開く (トークンは起動ごとに変わる. 環境変数 `ML_STUDIO_TOKEN` で決められる). ポートは `make serve PORT=8800` のように変えられる. 他のホストで待ち受ける場合は `ml-studio --host <ホスト> --allowed-host <接続に使う名前>` で起動する.
 
-上の帯のプロジェクトの欄で問題の設定を選ぶと, 全ての段階がその問題の設定を開く. 問題の設定の置き場は ML-Pathfinder の既定 (`~/.ml-pathfinder/`. 環境変数 `ML_PATHFINDER_HOME` で変えられる) で, データの分析の段階とモデルの作成・選定の段階も同じ置き場の問題の設定を読む. データの分析の段階の置き場 (登録したデータ, 前処理の手順, 書き出したデータセット) は ML-Fathom の既定 (`~/.ml-fathom/`. 環境変数 `ML_FATHOM_HOME` で変えられる), モデルの作成・選定の段階の置き場 (保存したモデルの定義) は ML-CreateArchitecture の既定 (`~/.ml-createarchitecture/`. 環境変数 `ML_CREATEARCHITECTURE_HOME` で変えられる). どれも各アプリを単独で起動したときと同じものを開く.
+上の帯のプロジェクトの欄で問題の設定を選ぶと, 全ての段階がその問題の設定を開く. 問題の設定の置き場は ML-Pathfinder の既定 (`~/.ml-pathfinder/`. 環境変数 `ML_PATHFINDER_HOME` で変えられる) で, データの分析の段階とモデルの作成・選定の段階も同じ置き場の問題の設定を読む. データの分析の段階の置き場 (登録したデータ, 前処理の手順, 書き出したデータセット) は ML-Fathom の既定 (`~/.ml-fathom/`. 環境変数 `ML_FATHOM_HOME` で変えられる), モデルの作成・選定の段階の置き場 (保存したモデルの定義) は ML-CreateArchitecture の既定 (`~/.ml-createarchitecture/`. 環境変数 `ML_CREATEARCHITECTURE_HOME` で変えられる). どれも各アプリを単独で起動したときと同じものを開く. ただしモデルの作成・選定の段階では, 外部のライブラリの部品 (huggingface, timm, torchvision など) は使えない.
 
 ## 文書
 

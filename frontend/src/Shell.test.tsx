@@ -168,6 +168,16 @@ describe('殻の画面', () => {
     expect(stage.props?.basename).toBe('/data')
   })
 
+  it('/model で開くと, モデルの作成・選定の段階から始める', () => {
+    mockProblems([])
+    window.history.replaceState(null, '', '/model')
+    render(<Shell />)
+    expect(window.location.pathname).toBe('/model')
+    expect(stage.app).toBe('ML-CreateArchitecture')
+    expect(stage.props?.basename).toBe('/model')
+    expect(stage.props?.apiBase).toBe('/api/model')
+  })
+
   it('プロジェクトの欄で選ぶと部品に渡し, localStorage に残す', async () => {
     mockProblems([
       { id: 'p1', name: '需要' },
