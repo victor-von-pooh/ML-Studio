@@ -5,7 +5,7 @@
 docs/DESIGN.md の「共通のライブラリの版」の表を読み, submodule の中の
 submodule と, 載せた各アプリが git の依存で直に持つライブラリの lock の
 版が表と違えば, 場所を出して 1 で終わる. submodule を取ってから (git submodule update --init
---recursive) 動かす
+--recursive), Python 3.11 以上 (tomllib) で動かす
 """
 import re
 import subprocess
@@ -105,6 +105,25 @@ def submodule_versions(root: Path) -> list[tuple[str, str, str]]:
     return found
 
 
+def package_key(name: str) -> str:
+    """
+    パッケージ名を, 小文字と - だけの形にそろえる関数
+
+    Parameters
+    ----------
+    name: str
+        パッケージ名 (pyproject.toml の書き方のまま)
+
+    Returns
+    ----------
+    key: str
+        uv.lock と同じ形の名前
+    """
+    key = re.sub(r"[-_.]+", "-", name).lower()
+
+    return key
+
+
 def library_name(url: str) -> str:
     """
     git の URL から, ライブラリの名前 (リポジトリの名前) を取る関数
@@ -117,7 +136,7 @@ def library_name(url: str) -> str:
     Returns
     ----------
     name: str
-        リポジトリの名前
+        リポジトリの名前 (大文字小文字は URL のまま)
     """
     name = url.split("#")[0].split("?")[0].rstrip("/").rsplit("/", 1)[-1]
     name = name.removesuffix(".git")
@@ -125,7 +144,64 @@ def library_name(url: str) -> str:
     return name
 
 
-def lock_versions(app: Path) -> tuple[list[tuple[str, str]], list[str]]:
+def read_toml(path: Path, root: Path) -> tuple[dict[str, Any], list[str]]:
+    """
+    TOML のファイルを読む関数
+
+    Parameters
+    ----------
+    path: Path
+        読むファイル
+    root: Path
+        崩れの場所を書くときの基準のディレクトリ
+
+    Returns
+    ----------
+    data: dict[str, Any]
+        読んだ中身 (読めなければ空)
+    errors: list[str]
+        読めない理由の説明の並び
+    """
+    # 壊れたファイルも場所付きの 1 行の崩れ (traceback で落とさないため)
+    try:
+        data: dict[str, Any] = tomllib.loads(
+            path.read_text(encoding="utf-8")
+        )
+    except (OSError, tomllib.TOMLDecodeError) as error:
+        return {}, [f"{path.relative_to(root)}: 読めません ({error})"]
+
+    return data, []
+
+
+def git_sources(project: dict[str, Any]) -> dict[str, str]:
+    """
+    pyproject.toml の tool.uv.sources から, git の依存を集める関数
+
+    Parameters
+    ----------
+    project: dict[str, Any]
+        pyproject.toml の中身
+
+    Returns
+    ----------
+    direct: dict[str, str]
+        そろえたパッケージ名からライブラリの名前への対応
+    """
+    # 1 つの書き方と, marker ごとの並びの書き方の両方
+    sources = project.get("tool", {}).get("uv", {}).get("sources", {})
+    direct: dict[str, str] = {}
+    for package, source in sources.items():
+        entries = source if isinstance(source, list) else [source]
+        for entry in entries:
+            if isinstance(entry, dict) and "git" in entry:
+                direct[package_key(package)] = library_name(entry["git"])
+
+    return direct
+
+
+def lock_versions(
+    app: Path, root: Path
+) -> tuple[list[tuple[str, str]], list[str]]:
     """
     アプリが git の依存で直に持つライブラリの, lock の版を読む関数
 
@@ -134,55 +210,53 @@ def lock_versions(app: Path) -> tuple[list[tuple[str, str]], list[str]]:
     app: Path
         段階のアプリのディレクトリ (backend/pyproject.toml と
         backend/uv.lock を持つ)
+    root: Path
+        殻のリポジトリの根 (崩れの場所の基準)
 
     Returns
     ----------
     found: list[tuple[str, str]]
-        ライブラリの名前と lock の版 (コミット) の組の並び
+        ライブラリの名前と lock の版 (コミット) の組の並び (同じ名前の
+        パッケージが lock に複数あれば全て)
     errors: list[str]
-        読めない lock の説明の並び
+        読めない pyproject.toml と lock の説明の並び
     """
-    # pyproject.toml の tool.uv.sources の git の依存 (無ければ空)
-    project = app / "backend" / "pyproject.toml"
-    if not project.is_file():
+    # pyproject.toml の git の依存 (無ければ見ない)
+    project_file = app / "backend" / "pyproject.toml"
+    if not project_file.is_file():
         return [], []
-    config: dict[str, Any] = tomllib.loads(project.read_text("utf-8"))
-    sources = config.get("tool", {}).get("uv", {}).get("sources", {})
-    direct = {
-        package: library_name(source["git"])
-        for package, source in sources.items()
-        if isinstance(source, dict) and "git" in source
-    }
+    project, errors = read_toml(project_file, root)
+    direct = git_sources(project)
     if not direct:
-        return [], []
+        return [], errors
 
     # uv.lock の同じ名前のパッケージの git の版 (# の後ろ)
     lock = app / "backend" / "uv.lock"
     if not lock.is_file():
-        return [], [f"{lock.relative_to(app.parent)}: ありません"]
-    packages = tomllib.loads(lock.read_text("utf-8")).get("package", [])
-    locked = {
-        entry["name"]: entry.get("source", {}).get("git", "")
-        for entry in packages
-    }
+        return [], errors + [f"{lock.relative_to(root)}: ありません"]
+    locked, lock_errors = read_toml(lock, root)
+    errors += lock_errors
     found: list[tuple[str, str]] = []
-    errors: list[str] = []
     for package, name in sorted(direct.items()):
-        url = locked.get(package, "")
-        if "#" not in url:
+        urls = [
+            entry.get("source", {}).get("git", "")
+            for entry in locked.get("package", [])
+            if package_key(entry.get("name", "")) == package
+        ]
+        if not urls or any("#" not in url for url in urls):
             errors.append(
-                f"{lock.relative_to(app.parent)}: {package} の git の版が"
+                f"{lock.relative_to(root)}: {package} の git の版が"
                 "ありません"
             )
             continue
-        found.append((name, url.rsplit("#", 1)[1]))
+        found += [(name, url.rsplit("#", 1)[1]) for url in urls]
 
     return found, errors
 
 
 def version_errors(root: Path) -> list[str]:
     """
-    表の版とずれた submodule を探す関数
+    表の版とずれた submodule と lock を探す関数
 
     Parameters
     ----------
@@ -194,49 +268,54 @@ def version_errors(root: Path) -> list[str]:
     errors: list[str]
         崩れの説明の並び
     """
-    # 表が読めないことも崩れ (確かめが黙って何も見なくなるため)
+    # 表が読めないことも崩れ (確かめが黙って何も見なくなるため).
+    # 名前は大文字小文字を除いて比べる (GitHub の URL は区別しないため)
     versions, errors = decided_versions(root / "docs" / "DESIGN.md")
     if not versions:
         errors.append(f"docs/DESIGN.md: 「{TABLE_TITLE}」の表が読めません")
         return errors
+    decided = {name.lower(): version for name, version in versions.items()}
 
     # 全ての submodule の印と, 段階のアプリの中のライブラリの版の確かめ
     # (殻の直下の段階のアプリの版は殻が選ぶので, 表と比べない)
     seen: set[str] = set()
-    for flag, path, commit in submodule_versions(root):
+    statuses = submodule_versions(root)
+    for flag, path, commit in statuses:
         if flag in FLAG_ERRORS:
             errors.append(f"{path}: {FLAG_ERRORS[flag]}")
             continue
-        name = Path(path).name
-        if "/" not in path or name not in versions:
+        name = Path(path).name.lower()
+        if "/" not in path or name not in decided:
             continue
         seen.add(name)
-        if not commit.startswith(versions[name]):
+        if not commit.startswith(decided[name]):
             errors.append(
-                f"{path}: {commit[:7]} (表の版は {versions[name]})"
+                f"{path}: {commit[:7]} (表の版は {decided[name]})"
             )
 
     # 殻の直下の段階のアプリが git の依存で直に持つライブラリの lock の版
     apps = [
-        path for flag, path, _ in submodule_versions(root)
+        path for flag, path, _ in statuses
         if "/" not in path and flag not in FLAG_ERRORS
     ]
     for app in apps:
-        found, lock_errors = lock_versions(root / app)
+        found, lock_errors = lock_versions(root / app, root)
         errors.extend(lock_errors)
-        for name, commit in found:
-            if name not in versions:
+        for library, commit in found:
+            name = library.lower()
+            if name not in decided:
                 continue
             seen.add(name)
-            if not commit.startswith(versions[name]):
+            if not commit.startswith(decided[name]):
                 errors.append(
-                    f"{app}/backend/uv.lock: {name} {commit[:7]} "
-                    f"(表の版は {versions[name]})"
+                    f"{app}/backend/uv.lock: {library} {commit[:7]} "
+                    f"(表の版は {decided[name]})"
                 )
 
-    # 表に載せたのに木の中に無いライブラリ
-    for name in sorted(set(versions) - seen):
-        errors.append(f"{name}: 殻の木の中に submodule がありません")
+    # 表に載せたのに木の中 (submodule と lock) に無いライブラリ
+    for name in sorted(versions):
+        if name.lower() not in seen:
+            errors.append(f"{name}: 殻の木の中にありません")
 
     return errors
 
