@@ -119,7 +119,7 @@ def create_api(
 
 殻はサーバーの側に自分の置き場を持たない (選んだプロジェクトと明暗は画面の `localStorage` に持つ).
 
-- 各アプリの置き場 (`data_dir`) は渡さず, 各アプリの既定 (環境変数かホームの下) のままにする (単独で作ったものを殻でも, 殻で作ったものを単独でも開けるようにするため)
+- 各アプリの置き場 (`data_dir`) は渡さず, 各アプリの既定 (環境変数かホームの下) のままにする (単独で作ったものを殻でも, 殻で作ったものを単独でも開けるようにするため). ML-Pathfinder は `ML_PATHFINDER_HOME` か `~/.ml-pathfinder/`, ML-Fathom は `ML_FATHOM_HOME` か `~/.ml-fathom/`
 - 問題の設定の置き場は, 殻が ML-Pathfinder の `create_api()` を先に呼び, その `app.state.problems_dir` を他の 4 つのアプリの `create_api` に `problems_dir` として渡す (場所を決めるのを ML-Pathfinder だけにし, 殻が中の作りに頼らず, アプリごとに場所が食い違わないようにするため)
 
 ## 7. 安全
@@ -137,6 +137,19 @@ def create_api(
 - 1 つのプロセス (worker 1 つ) で動かす. 学習・評価の段階のジョブの管理と, 起動時に部品を入れる登録簿がプロセスの中の状態のため
 - 殻は 5 つのアプリの `create_api` を 1 度ずつ呼んで mount する. ML-Pathfinder を先に呼び, その問題の設定の置き場を他に渡す (6 の節). 各アプリの例外ハンドラ, 子プロセス, スレッドは mount した sub-app の中でそのまま動く
 - 各アプリの画面は殻の画面のビルドに取り込み, 各アプリのビルド済みの画面 (`static/`) は使わない (共通の部品と 1 つのビルドにまとめるため)
+
+### 載せた段階と依存
+
+| 段階 | アプリ (submodule) | アプリが submodule で持つライブラリ |
+| --- | --- | --- |
+| 問題の設定 | `ML-Pathfinder/` | ML-Quest |
+| データの分析 | `ML-Fathom/` | ML-EDA, ML-Quest |
+
+- submodule の中の submodule も取る (`git submodule update --init --recursive`. CI の checkout も `submodules: recursive`). 各アプリがライブラリを submodule で持ち, 殻はそれを使うため
+- バックエンドは 1 つの Python の環境 (uv) に, 各アプリのパッケージとライブラリを submodule から editable で入れる (`backend/pyproject.toml` の `tool.uv.sources`)
+- 同じライブラリを 2 つ以上のアプリが使う場合は, 殻の `tool.uv.override-dependencies` で 1 つの求め方に上書きし, submodule のうち新しい版を持つもの (今は ML-Fathom の ML-EDA と ML-Quest) にそろえる (1 つの環境には 1 つの版しか入らず, アプリごとの submodule の版や git の版の求めがぶつかるため). 上書きは extra ごと置き換えるので, 各アプリが使う extra を全て書く. そろえた版で各段階の API が動くことは, CI で殻の環境のまま各アプリのテストを流して確かめる (殻のテストと通しの確かめは各段階の API の一部しか通らないため)
+- 画面は 1 つの pnpm workspace (`frontend/pnpm-workspace.yaml`) に各アプリの画面のパッケージを加え, 共通の依存 (react, react-router, TanStack Query など) を 1 つの版に解く. react と react-dom は vite の `dedupe` でも 1 つにする (2 つ読むとフックが動かないため). 開発用のサーバーが submodule の画面のソースを配れるよう, vite の `server.fs.allow` に各アプリの画面のディレクトリを加える
+- 画面のビルドは段階の部品を全て 1 つのファイルにまとめ, 大きさの警告の閾値は 2500 kB にする (図の部品などで 2 MB 近くになるが, 手元で開くアプリで読み込みの時間の害が小さいため). 段階を足して閾値を超えたら, 閾値を上げずに段階ごとに分けて読む形にする
 
 ## 9. 各アプリへの要求と進め方
 

@@ -2,3 +2,4 @@
 packages:
   - .
   - ../ML-Pathfinder/frontend
+  - ../ML-Fathom/frontend

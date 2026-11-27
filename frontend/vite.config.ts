@@ -17,13 +17,18 @@ export default defineConfig({
     },
     fs: {
       // submodule の段階のアプリの画面のソースも配る
-      allow: [searchForWorkspaceRoot(process.cwd()), '../ML-Pathfinder/frontend'],
+      allow: [
+        searchForWorkspaceRoot(process.cwd()),
+        '../ML-Pathfinder/frontend',
+        '../ML-Fathom/frontend',
+      ],
     },
   },
   build: {
     outDir: '../backend/src/ml_studio/static',
     emptyOutDir: true,
-    chunkSizeWarningLimit: 1500,
+    // 段階のアプリの画面を 1 つのビルドにまとめる (データの分析の段階のグラフの部品が大きい)
+    chunkSizeWarningLimit: 2500,
   },
   test: {
     globals: true,

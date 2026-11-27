@@ -1,3 +1,6 @@
 [submodule "ML-Pathfinder"]
 	path = ML-Pathfinder
 	url = https://github.com/victor-von-pooh/ML-Pathfinder.git
+[submodule "ML-Fathom"]
+	path = ML-Fathom
+	url = https://github.com/victor-von-pooh/ML-Fathom.git

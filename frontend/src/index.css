@@ -2,6 +2,7 @@
 
 /* 段階のアプリの画面のソースも Tailwind の探す先に加える (殻の外の submodule にあるため) */
 @source '../../ML-Pathfinder/frontend/src';
+@source '../../ML-Fathom/frontend/src';
 
 /* クラスで切り替えるダークモード */
 @custom-variant dark (&:where(.dark, .dark *));
