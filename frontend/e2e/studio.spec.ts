@@ -282,6 +282,132 @@ test('選んだ問題の設定を引き継いで学習・評価の段階を開�
   expect(errors).toEqual([])
 })
 
+// 学習・評価の段階で, ブラウザの戻ると進むが段階の中の移動と段階をまたぐ移動の両方で効き,
+// 作り直した段階の画面が今の経路を読むことを確かめる
+test('学習・評価の段階でブラウザの戻ると進むが段階の中と段階をまたいで効く', async ({ page }) => {
+  const errors: string[] = []
+  page.on('pageerror', (error) => errors.push(error.message))
+  page.on('console', (message) => {
+    if (message.type() === 'error') errors.push(message.text())
+  })
+
+  await page.goto('/api/auth?token=e2e-token')
+  await expect(page).toHaveURL(/\/problem$/)
+  const stages = page.getByRole('navigation', { name: '段階' })
+  const train = stages.getByRole('link', { name: '学習・評価' })
+  const projects = page.getByRole('heading', { name: 'プロジェクト', exact: true })
+  const jobs = page.getByRole('heading', { name: 'ジョブ', exact: true })
+
+  // 段階の並びで学習・評価に移り, 段階の中のリンクでジョブに移る
+  await train.click()
+  await expect(page).toHaveURL(/\/train$/)
+  await expect(projects).toBeVisible()
+  await page.getByRole('link', { name: 'ジョブ', exact: true }).click()
+  await expect(page).toHaveURL(/\/train\/jobs$/)
+  await expect(jobs).toBeVisible()
+
+  // 段階の中で戻ると /train の画面に, 進むとジョブの画面に戻る
+  await page.goBack()
+  await expect(page).toHaveURL(/\/train$/)
+  await expect(projects).toBeVisible()
+  await expect(jobs).toHaveCount(0)
+  await page.goForward()
+  await expect(page).toHaveURL(/\/train\/jobs$/)
+  await expect(jobs).toBeVisible()
+  await expect(projects).toHaveCount(0)
+
+  // 段階の並びで問題の設定に移って戻ると, 作り直した学習・評価の段階の画面が今の経路
+  // (/train/jobs) を読んで出す
+  await stages.getByRole('link', { name: '問題の設定' }).click()
+  await expect(page).toHaveURL(/\/problem$/)
+  await expect(page.getByLabel(/^問題の名前/)).toBeVisible()
+  await page.goBack()
+  await expect(page).toHaveURL(/\/train\/jobs$/)
+  await expect(jobs).toBeVisible()
+  await expect(train).toHaveAttribute('aria-current', 'step')
+
+  // 作り直した後の段階の画面でも, 段階の中の戻ると進むが効く
+  await page.goBack()
+  await expect(page).toHaveURL(/\/train$/)
+  await expect(projects).toBeVisible()
+  await page.goForward()
+  await expect(page).toHaveURL(/\/train\/jobs$/)
+  await expect(jobs).toBeVisible()
+
+  // 段階をまたいで進むと, 問題の設定の段階の画面に戻る
+  await page.goForward()
+  await expect(page).toHaveURL(/\/problem$/)
+  await expect(page.getByLabel(/^問題の名前/)).toBeVisible()
+
+  expect(errors).toEqual([])
+})
+
+// 段階を往復しても, 外した学習・評価の段階の画面のルーターが戻ると進むの見張りを残さない
+// ことを確かめる (残っても画面の見え方は変わらないので, 生きている見張りの数で見る)
+test('学習・評価の段階を往復しても戻ると進むの見張りが増えない', async ({ page }) => {
+  const errors: string[] = []
+  page.on('pageerror', (error) => errors.push(error.message))
+  page.on('console', (message) => {
+    if (message.type() === 'error') errors.push(message.text())
+  })
+  // window の popstate の見張りを, 関数と capture の組で数えて window.__popstate に出す
+  // (同じ組の付け直しと, 付けていない組の外しは数を変えないので, 組の集まりで数える.
+  // e2e は DOM の型を持たないので, ページの中で動かす式を文字列で渡す)
+  await page.addInitScript(`(() => {
+    const alive = new Set()
+    const key = (listener, options) => {
+      const capture = typeof options === 'boolean' ? options : Boolean(options?.capture)
+      return { listener, capture }
+    }
+    const find = (listener, capture) =>
+      [...alive].find((item) => item.listener === listener && item.capture === capture)
+    const add = window.addEventListener
+    const remove = window.removeEventListener
+    window.addEventListener = function (type, listener, options) {
+      if (type === 'popstate' && listener) {
+        const { capture } = key(listener, options)
+        if (!find(listener, capture)) alive.add({ listener, capture })
+      }
+      return add.call(this, type, listener, options)
+    }
+    window.removeEventListener = function (type, listener, options) {
+      if (type === 'popstate' && listener) {
+        const item = find(listener, key(listener, options).capture)
+        if (item) alive.delete(item)
+      }
+      return remove.call(this, type, listener, options)
+    }
+    Object.defineProperty(window, '__popstate', { get: () => alive.size })
+  })()`)
+  const watchers = () => page.evaluate<number>('window.__popstate')
+
+  await page.goto('/api/auth?token=e2e-token')
+  await expect(page).toHaveURL(/\/problem$/)
+  const stages = page.getByRole('navigation', { name: '段階' })
+  const projects = page.getByRole('heading', { name: 'プロジェクト', exact: true })
+
+  // 最初に学習・評価の段階を開いたときの見張りの数
+  await stages.getByRole('link', { name: '学習・評価' }).click()
+  await expect(page).toHaveURL(/\/train$/)
+  await expect(projects).toBeVisible()
+  const first = await watchers()
+  // 数える仕掛けが効いている (殻とルーターの見張りが見える)
+  expect(first).toBeGreaterThan(0)
+
+  // 問題の設定と学習・評価を 3 度往復しても, 見張りの数が最初より増えない
+  for (let round = 0; round < 3; round += 1) {
+    await stages.getByRole('link', { name: '問題の設定' }).click()
+    await expect(page).toHaveURL(/\/problem$/)
+    await expect(page.getByLabel(/^問題の名前/)).toBeVisible()
+    await stages.getByRole('link', { name: '学習・評価' }).click()
+    await expect(page).toHaveURL(/\/train$/)
+    await expect(projects).toBeVisible()
+  }
+  expect(await watchers()).toBeLessThanOrEqual(first)
+
+  expect(errors).toEqual([])
+})
+
 // 殻で選んだ問題の設定を引き継いで推論の段階に移り, ML-Provide の画面が実験の一覧を殻の
 // 問題の設定で絞り, 殻の明暗の切り替えが段階の画面に効くことを確かめる
 test('選んだ問題の設定を引き継いで推論の段階を開く', async ({ page }) => {
