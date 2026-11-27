@@ -9,6 +9,11 @@ export default defineConfig({
   timeout: 60_000,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
+  // 通しの確かめ (学習を含む) と殻の画面の確かめを分け, CI では別のジョブで流す
+  projects: [
+    { name: 'studio', testIgnore: /journey\.spec\.ts$/ },
+    { name: 'journey', testMatch: /journey\.spec\.ts$/ },
+  ],
   use: {
     baseURL: `http://127.0.0.1:${port}`,
     // 手元では入っている Chrome を使い, CI では Playwright の Chromium を使う
