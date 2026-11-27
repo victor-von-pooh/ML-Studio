@@ -90,9 +90,7 @@ test('選んだ問題の設定を引き継いでデータの分析の段階を�
     'step',
   )
   await expect(page.getByRole('heading', { name: 'データ', exact: true })).toBeVisible()
-  const card = page
-    .locator('section')
-    .filter({ has: page.getByRole('heading', { name: '選んだ問題の設定' }) })
+  const card = page.getByRole('region', { name: '選んだ問題の設定' })
   await expect(card.getByText('店の売上')).toBeVisible()
   await expect(card.getByText(new RegExp(`/${opened}/problem\\.yaml$`))).toBeVisible()
   await expect(select).toHaveValue(opened)
@@ -253,9 +251,7 @@ test('選んだ問題の設定を引き継いで学習・評価の段階を開�
   await expect(page.getByRole('button', { name: /表示にする$/ })).toHaveCount(1)
 
   // 殻で選んだ問題の設定の欄 (まだ学習のプロジェクトを記録していないので, 開けない理由も出す)
-  const note = page.locator('section', {
-    has: page.getByRole('heading', { name: '選んだ問題の設定' }),
-  })
+  const note = page.getByRole('region', { name: '選んだ問題の設定' })
   await expect(note.getByText('機械の故障', { exact: true })).toBeVisible()
   await expect(note.getByText(opened, { exact: true })).toBeVisible()
   await expect(note.getByText(/プロジェクトの記録がありません/)).toBeVisible()
