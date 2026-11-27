@@ -147,8 +147,9 @@ def create_api(
 
 - submodule の中の submodule も取る (`git submodule update --init --recursive`. CI の checkout も `submodules: recursive`). 各アプリがライブラリを submodule で持ち, 殻はそれを使うため
 - バックエンドは 1 つの Python の環境 (uv) に, 各アプリのパッケージとライブラリを submodule から editable で入れる (`backend/pyproject.toml` の `tool.uv.sources`)
-- 同じライブラリを 2 つ以上のアプリが使う場合は, 殻の `tool.uv.override-dependencies` で 1 つの求め方に上書きし, submodule のうち新しい版を持つもの (今は ML-Fathom の ML-EDA と ML-Quest) にそろえる (1 つの環境には 1 つの版しか入らず, アプリごとの submodule の版や git の版の求めがぶつかるため). 上書きは extra ごと置き換えるので, 各アプリが使う extra を全て書く. そろえた版で各段階の API が動くことは殻のテストと通しの確かめで確かめる
+- 同じライブラリを 2 つ以上のアプリが使う場合は, 殻の `tool.uv.override-dependencies` で 1 つの求め方に上書きし, submodule のうち新しい版を持つもの (今は ML-Fathom の ML-EDA と ML-Quest) にそろえる (1 つの環境には 1 つの版しか入らず, アプリごとの submodule の版や git の版の求めがぶつかるため). 上書きは extra ごと置き換えるので, 各アプリが使う extra を全て書く. そろえた版で各段階の API が動くことは, CI で殻の環境のまま各アプリのテストを流して確かめる (殻のテストと通しの確かめは各段階の API の一部しか通らないため)
 - 画面は 1 つの pnpm workspace (`frontend/pnpm-workspace.yaml`) に各アプリの画面のパッケージを加え, 共通の依存 (react, react-router, TanStack Query など) を 1 つの版に解く. react と react-dom は vite の `dedupe` でも 1 つにする (2 つ読むとフックが動かないため). 開発用のサーバーが submodule の画面のソースを配れるよう, vite の `server.fs.allow` に各アプリの画面のディレクトリを加える
+- 画面のビルドは段階の部品を全て 1 つのファイルにまとめ, 大きさの警告の閾値は 2500 kB にする (図の部品などで 2 MB 近くになるが, 手元で開くアプリで読み込みの時間の害が小さいため). 段階を足して閾値を超えたら, 閾値を上げずに段階ごとに分けて読む形にする
 
 ## 9. 各アプリへの要求と進め方
 

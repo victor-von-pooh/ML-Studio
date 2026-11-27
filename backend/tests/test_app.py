@@ -212,6 +212,10 @@ def test_origin_checked(client: TestClient) -> None:
     response = client.get("/api/problem/problems", headers=other)
     assert response.status_code == 200
 
+    # データの分析の段階の書き込みも別のサイトからは 403
+    response = client.post("/api/data/samples", json={}, headers=other)
+    assert response.status_code == 403
+
 
 def test_host_checked(client: TestClient) -> None:
     """
@@ -229,6 +233,10 @@ def test_host_checked(client: TestClient) -> None:
     # 他のホスト名は 400
     response = client.get(
         "/api/problem/problems", headers={"host": "evil.example"}
+    )
+    assert response.status_code == 400
+    response = client.get(
+        "/api/data/problems", headers={"host": "evil.example"}
     )
     assert response.status_code == 400
 

@@ -35,6 +35,11 @@ jobs:
       - run: uv run ruff check .
       - run: uv run mypy src tests
       - run: uv run pytest -q
+      # そろえた版のライブラリで各アプリの API が動くかを, 殻の環境のまま各アプリのテストで確かめる
+      - run: uv run --project ../../backend --frozen pytest -q
+        working-directory: ML-Pathfinder/backend
+      - run: uv run --project ../../backend --frozen pytest -q
+        working-directory: ML-Fathom/backend
 
   # 殻の画面 (pnpm workspace に ML-Pathfinder と ML-Fathom の画面のパッケージを加える)
   frontend:
