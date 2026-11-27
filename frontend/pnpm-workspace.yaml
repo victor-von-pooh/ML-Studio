@@ -1,0 +1,4 @@
+# 殻の画面と, submodule の各アプリの画面のパッケージ (根の部品を import する)
+packages:
+  - .
+  - ../ML-Pathfinder/frontend

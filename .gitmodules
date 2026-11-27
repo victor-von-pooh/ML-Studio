@@ -1,0 +1,3 @@
+[submodule "ML-Pathfinder"]
+	path = ML-Pathfinder
+	url = https://github.com/victor-von-pooh/ML-Pathfinder.git

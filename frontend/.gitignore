@@ -1,0 +1,20 @@
+# Logs
+logs
+*.log
+pnpm-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+
+# 殻の通しのテストの作業用のディレクトリと結果
+e2e/.work/
+test-results/
+playwright-report/
