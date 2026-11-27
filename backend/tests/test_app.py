@@ -1,15 +1,23 @@
 import shutil
+import sys
 import time
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
+import numpy as np
+import pandas as pd
 import pytest
+import torch
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from ml_eda import export_dataset, load_data
+from ml_modelcontrol import build_model
+from ml_modelcontrol.custom import LOADED_MODULES, remove_module_units
 from starlette.routing import Mount
 
 from ml_studio.app import cookie_name, create_app, get_token
-from ml_studio.cli import allowed_hosts
+from ml_studio.cli import allowed_hosts, main
 
 # テストのトークン
 TOKEN = "test-token"
@@ -46,6 +54,40 @@ def static_dir(tmp_path: Path) -> Path:
     return static_dir
 
 
+def isolate_homes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """
+    段階のアプリの既定の置き場を一時ディレクトリに替え, 自作の部品と手順
+    の起動の設定を外す関数
+
+    Parameters
+    ----------
+    tmp_path: Path
+        一時ディレクトリ
+    monkeypatch: pytest.MonkeyPatch
+        環境変数の差し替え
+
+    Returns
+    ----------
+    None
+    """
+    # ML-Pathfinder, ML-Fathom, ML-CreateArchitecture, ML-Dashboard,
+    # ML-Provide の置き場の環境変数
+    monkeypatch.setenv("ML_PATHFINDER_HOME", str(tmp_path / "home"))
+    monkeypatch.setenv("ML_FATHOM_HOME", str(tmp_path / "fathom"))
+    monkeypatch.setenv(
+        "ML_CREATEARCHITECTURE_HOME", str(tmp_path / "createarchitecture")
+    )
+    monkeypatch.setenv("ML_DASHBOARD_HOME", str(tmp_path / "dashboard"))
+    monkeypatch.setenv("ML_PROVIDE_HOME", str(tmp_path / "provide"))
+
+    # 手元の起動の設定の自作の部品と手順の読み込みの停止
+    for name in (
+        "ML_CREATEARCHITECTURE_MODULES", "ML_PROVIDE_UNITS",
+        "ML_PROVIDE_PROCEDURES"
+    ):
+        monkeypatch.delenv(name, raising=False)
+
+
 @pytest.fixture
 def app_client(
     tmp_path: Path, static_dir: Path, monkeypatch: pytest.MonkeyPatch
@@ -68,15 +110,8 @@ def app_client(
     client: TestClient
         トークンを持たない利用者
     """
-    # ML-Pathfinder, ML-Fathom, ML-CreateArchitecture, ML-Dashboard の既定の
-    # 置き場の一時ディレクトリへの差し替え
-    monkeypatch.setenv("ML_PATHFINDER_HOME", str(tmp_path / "home"))
-    monkeypatch.setenv("ML_FATHOM_HOME", str(tmp_path / "fathom"))
-    monkeypatch.setenv(
-        "ML_CREATEARCHITECTURE_HOME", str(tmp_path / "createarchitecture")
-    )
-    monkeypatch.delenv("ML_CREATEARCHITECTURE_MODULES", raising=False)
-    monkeypatch.setenv("ML_DASHBOARD_HOME", str(tmp_path / "dashboard"))
+    # 段階のアプリの既定の置き場の一時ディレクトリへの差し替え
+    isolate_homes(tmp_path, monkeypatch)
     app = create_app(
         token=TOKEN, allowed_hosts=["testserver"], static_dir=static_dir
     )
@@ -127,6 +162,7 @@ def test_token_required(app_client: TestClient) -> None:
     assert app_client.get("/api/data/sources").status_code == 401
     assert app_client.get("/api/model/units").status_code == 401
     assert app_client.get("/api/train/projects").status_code == 401
+    assert app_client.get("/api/infer/info").status_code == 401
 
     # 別の起動のトークンの Cookie
     app_client.cookies.set(cookie_name("other"), "other")
@@ -237,6 +273,10 @@ def test_origin_checked(client: TestClient) -> None:
     response = client.post("/api/train/projects", json={}, headers=other)
     assert response.status_code == 403
 
+    # 推論の段階の書き込みも別のサイトからは 403
+    response = client.post("/api/infer/bundles", json={}, headers=other)
+    assert response.status_code == 403
+
 
 def test_host_checked(client: TestClient) -> None:
     """
@@ -266,6 +306,10 @@ def test_host_checked(client: TestClient) -> None:
     assert response.status_code == 400
     response = client.get(
         "/api/train/projects", headers={"host": "evil.example"}
+    )
+    assert response.status_code == 400
+    response = client.get(
+        "/api/infer/info", headers={"host": "evil.example"}
     )
     assert response.status_code == 400
 
@@ -555,6 +599,249 @@ def test_train_job_runs(client: TestClient, tmp_path: Path) -> None:
     assert len(runs) == 1
 
 
+def test_infer_api_mounted(client: TestClient, tmp_path: Path) -> None:
+    """
+    ML-Provide の API が /api/infer の下で動き, ML-Pathfinder と同じ問題の
+    設定の置き場を読むことを確かめる関数
+
+    Parameters
+    ----------
+    client: TestClient
+        トークン付きの利用者
+    tmp_path: Path
+        一時ディレクトリ
+
+    Returns
+    ----------
+    None
+    """
+    # 問題の設定の段階で作った問題の設定の, 推論の段階の実験の一覧での
+    # 読み込み (学習のプロジェクトをまだ記録していないので実験は無い)
+    response = client.post("/api/problem/problems", json={"name": "需要"})
+    assert response.status_code == 201
+    created = response.json()
+    response = client.get(
+        "/api/infer/experiments", params={"project": created["id"]}
+    )
+    assert response.status_code == 200
+    listing = response.json()
+    problems_dir = tmp_path / "home" / "problems"
+    assert Path(listing["problems"]).resolve() == problems_dir.resolve()
+    assert listing["experiments"] == []
+
+    # 段階の間で同じ置き場と, ML-Provide の既定 (環境変数の下) の
+    # アプリの置き場
+    app: FastAPI = client.app  # type: ignore[assignment]
+    infer_api = mounted_api(client, "/api/infer")
+    assert infer_api.state.problems_dir == app.state.problems_dir
+    assert infer_api.state.store.home == (tmp_path / "provide").resolve()
+
+    # 起動の設定の無い自作の部品と手順, 登録した一式の一覧
+    info = client.get("/api/infer/info").json()
+    assert info["unit_modules"] == [] and info["procedure_modules"] == []
+    assert client.get("/api/infer/bundles").json() == []
+
+
+# 自作の部品を宣言するモジュールの中身 ({unit} は部品の名前)
+UNIT_CODE = '''
+import torch
+from torch import nn
+
+
+class Twice(nn.Module):
+    """全結合の層の出力を 2 倍にする部品"""
+
+    def __init__(self, features: int = 3):
+        super().__init__()
+        self.fc = nn.Linear(features, features)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        y = self.fc(x) * 2.0
+        return y
+
+
+UNITS = [{{"cls": Twice, "name": "{unit}"}}]
+'''
+
+
+@pytest.fixture
+def lab_module(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> Iterator[str]:
+    """
+    自作の部品を宣言するモジュールを作って読み込める場所に加え, 後で
+    登録簿と読み込んだ記録から外す関数
+
+    Parameters
+    ----------
+    tmp_path: Path
+        一時ディレクトリ
+    monkeypatch: pytest.MonkeyPatch
+        import の探す場所の差し替え
+
+    Returns
+    ----------
+    module: Iterator[str]
+        モジュールの名前 (テストごとに別)
+    """
+    # 一時ディレクトリの名前を付けたモジュール
+    folder = tmp_path / "modules"
+    folder.mkdir()
+    monkeypatch.syspath_prepend(str(folder))
+    module = f"studio_lab_{tmp_path.name.replace('-', '_')}"
+    (folder / f"{module}.py").write_text(
+        UNIT_CODE.format(unit=f"{module}.Twice"), encoding="utf-8"
+    )
+    yield module
+
+    # 登録簿と読み込んだ記録はプロセスに 1 つなので, 他のテストへの残りの除去
+    remove_module_units(module)
+    LOADED_MODULES.pop(module, None)
+    sys.modules.pop(module, None)
+
+
+def test_shared_units_registry(
+    tmp_path: Path, static_dir: Path, monkeypatch: pytest.MonkeyPatch,
+    lab_module: str
+) -> None:
+    """
+    同じ自作の部品のモジュールを ML-CreateArchitecture と ML-Provide の
+    両方の起動の設定に書いても殻が起動し, 両方の段階で部品を使えることを
+    確かめる関数
+
+    自作の部品の登録簿 (ML-ModelControl) はプロセスに 1 つで, 2 つの
+    アプリが共有する
+
+    Parameters
+    ----------
+    tmp_path: Path
+        一時ディレクトリ
+    static_dir: Path
+        テストの画面のディレクトリ
+    monkeypatch: pytest.MonkeyPatch
+        環境変数の差し替え
+    lab_module: str
+        自作の部品のモジュールの名前
+
+    Returns
+    ----------
+    None
+    """
+    # 2 つのアプリの起動の設定に同じモジュール
+    isolate_homes(tmp_path, monkeypatch)
+    monkeypatch.setenv("ML_CREATEARCHITECTURE_MODULES", lab_module)
+    monkeypatch.setenv("ML_PROVIDE_UNITS", lab_module)
+    app = create_app(
+        token=TOKEN, allowed_hosts=["testserver"], static_dir=static_dir
+    )
+    client = TestClient(app, headers={"x-studio-token": TOKEN})
+    unit = f"{lab_module}.Twice"
+
+    # 両方の段階での同じモジュールの部品の読み込み
+    modules = client.get("/api/model/modules").json()["modules"]
+    assert modules == [{"name": lab_module, "units": [unit]}]
+    info = client.get("/api/infer/info").json()
+    assert info["unit_modules"] == [{"name": lab_module, "units": [unit]}]
+    names = [item["name"] for item in client.get("/api/model/units").json()]
+    assert names.count(unit) == 1
+
+    # モデルの作成・選定の段階での, 部品を使った定義の確かめと保存
+    spec: dict[str, Any] = {
+        "format_version": 1,
+        "inputs": {"x": {"shape": [2, 3]}},
+        "nodes": {
+            "lab": {"unit": unit, "params": {"features": 3}, "inputs": "x"},
+            "head": {
+                "unit": "nn.Linear",
+                "params": {"in_features": 3, "out_features": 2},
+                "inputs": "lab",
+            },
+        },
+        "outputs": {"out": "head"},
+    }
+    response = client.post("/api/model/check", json={"spec": spec})
+    assert response.status_code == 200
+    assert response.json()["ok"] is True, response.json()["issues"]
+    response = client.put("/api/model/models/lab", json={"spec": spec})
+    assert response.status_code == 200
+    spec_file = tmp_path / "createarchitecture" / "models" / "lab.yaml"
+    assert spec_file.is_file()
+
+    # 推論の段階での, 保存した定義と重みとデータセットからの一式の作成と推論
+    rng = np.random.default_rng(0)
+    frame = pd.DataFrame({
+        column: rng.normal(size=20) for column in ("a", "b", "c")
+    })
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    train = data_dir / "train.csv"
+    frame.to_csv(train, index=False)
+    new = data_dir / "new.csv"
+    frame.head(4).to_csv(new, index=False)
+    recipe = {
+        "format_version": 1, "target": None, "task": "none",
+        "steps": [{"op": "standardize", "columns": "auto"}],
+        "split": {"method": "random", "valid": 0.2, "seed": 0},
+    }
+    export_dataset(load_data(train), recipe, data_dir / "dataset")
+    weights = tmp_path / "lab.pt"
+    torch.save(build_model(spec, seed=0).state_dict(), weights)
+    response = client.post("/api/infer/bundles/create", json={
+        "name": "lab", "spec": str(spec_file),
+        "dataset": str(data_dir / "dataset"), "weights": str(weights),
+        "form": "vector", "role": "group",
+    })
+    assert response.status_code == 201, response.text
+    bundle = response.json()
+    assert bundle["ok"] is True, bundle
+    response = client.post(
+        f"/api/infer/bundles/{bundle['id']}/predict",
+        json={"source": str(new)}
+    )
+    assert response.status_code == 201, response.text
+
+
+def test_cli_stops_on_unreadable_module(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str]
+) -> None:
+    """
+    ML-Provide の起動の設定に読めないモジュールがあると, 殻の起動が理由の
+    1 行を出して終わることを確かめる関数
+
+    Parameters
+    ----------
+    tmp_path: Path
+        一時ディレクトリ
+    monkeypatch: pytest.MonkeyPatch
+        環境変数と起動の引数の差し替え
+    capsys: pytest.CaptureFixture[str]
+        出力の受け取り
+
+    Returns
+    ----------
+    None
+    """
+    # 読めない部品のモジュールと, 読めない手順のモジュール
+    isolate_homes(tmp_path, monkeypatch)
+    monkeypatch.delenv("ML_STUDIO_TOKEN", raising=False)
+    monkeypatch.setattr(sys, "argv", ["ml-studio"])
+    for name, module in (
+        ("ML_PROVIDE_UNITS", "no_such_studio_units"),
+        ("ML_PROVIDE_PROCEDURES", "no_such_studio_procedures"),
+    ):
+        monkeypatch.setenv(name, module)
+        with pytest.raises(SystemExit) as stopped:
+            main()
+        assert stopped.value.code == 1
+        lines = capsys.readouterr().out.splitlines()
+        assert len(lines) == 1
+        assert lines[0].startswith("起動できません: ")
+        assert module in lines[0]
+        assert "ML-Studio を開く" not in lines[0]
+        monkeypatch.delenv(name)
+
+
 def test_unknown_api_not_found(client: TestClient) -> None:
     """
     どの段階にも合わない /api の下の経路が 404 になることを確かめる関数
@@ -571,7 +858,7 @@ def test_unknown_api_not_found(client: TestClient) -> None:
     # 画面の HTML ではなく 404 の JSON
     for path in (
         "/api", "/api/x", "/api/problem", "/api/data/items",
-        "/api/model/items", "/api/train/items"
+        "/api/model/items", "/api/train/items", "/api/infer/items"
     ):
         response = client.get(path)
         assert response.status_code == 404
@@ -658,13 +945,7 @@ def test_without_frontend(
     None
     """
     # index.html の無い画面のディレクトリ
-    monkeypatch.setenv("ML_PATHFINDER_HOME", str(tmp_path / "home"))
-    monkeypatch.setenv("ML_FATHOM_HOME", str(tmp_path / "fathom"))
-    monkeypatch.setenv(
-        "ML_CREATEARCHITECTURE_HOME", str(tmp_path / "createarchitecture")
-    )
-    monkeypatch.delenv("ML_CREATEARCHITECTURE_MODULES", raising=False)
-    monkeypatch.setenv("ML_DASHBOARD_HOME", str(tmp_path / "dashboard"))
+    isolate_homes(tmp_path, monkeypatch)
     app = create_app(
         token=TOKEN, allowed_hosts=["testserver"],
         static_dir=tmp_path / "empty"

@@ -286,6 +286,79 @@ test('選んだ問題の設定を引き継いで学習・評価の段階を開�
   expect(errors).toEqual([])
 })
 
+// 殻で選んだ問題の設定を引き継いで推論の段階に移り, ML-Provide の画面が実験の一覧を殻の
+// 問題の設定で絞り, 殻の明暗の切り替えが段階の画面に効くことを確かめる
+test('選んだ問題の設定を引き継いで推論の段階を開く', async ({ page }) => {
+  const errors: string[] = []
+  page.on('pageerror', (error) => errors.push(error.message))
+  page.on('console', (message) => {
+    if (message.type() === 'error') errors.push(message.text())
+  })
+
+  // 問題の設定を作って殻の欄で選ぶ
+  await page.goto('/api/auth?token=e2e-token')
+  await expect(page).toHaveURL(/\/problem$/)
+  await page.getByLabel(/^問題の名前/).fill('解約の見込み')
+  await page.getByRole('button', { name: '作る', exact: true }).click()
+  await expect(page).toHaveURL(/\/problem\/problems\/[^/]+$/)
+  const opened = new URL(page.url()).pathname.split('/').pop()!
+  const select = page.getByLabel('プロジェクト', { exact: true })
+  await expect(select).toHaveValue(opened)
+
+  // 段階の並びで推論に移ると, ML-Provide の画面が API を /api/infer の下に呼んで開く
+  const bundles = page.waitForResponse(
+    (response) => new URL(response.url()).pathname === '/api/infer/bundles',
+  )
+  const stages = page.getByRole('navigation', { name: '段階' })
+  await stages.getByRole('link', { name: '推論' }).click()
+  await expect(page).toHaveURL(/\/infer$/)
+  expect((await bundles).status()).toBe(200)
+  await expect(stages.getByRole('link', { name: '推論' })).toHaveAttribute('aria-current', 'step')
+  await expect(page.getByRole('heading', { name: '推論の一式', exact: true })).toBeVisible()
+  await expect(select).toHaveValue(opened)
+  // 殻の下ではアプリの名前と明暗の切り替えを出さない (殻の上の帯が持つ)
+  await expect(page.getByText('ML-Provide', { exact: true })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /表示にする$/ })).toHaveCount(1)
+
+  // 実験の一覧は殻で選んだ問題の設定で絞る (まだ実験が無いので, 無いと出す)
+  const experiments = page.waitForResponse((response) => {
+    const url = new URL(response.url())
+    return url.pathname === '/api/infer/experiments' && url.searchParams.get('project') === opened
+  })
+  await page.getByRole('button', { name: '実験の一覧から登録' }).click()
+  expect((await experiments).status()).toBe(200)
+  const dialog = page.getByRole('dialog', { name: '実験の一覧から登録' })
+  await expect(dialog.getByText(`選んだプロジェクト ${opened}`)).toBeVisible()
+  await expect(dialog.getByText(/一式を持つ実験がありません/)).toBeVisible()
+  await dialog.getByRole('button', { name: '閉じる' }).click()
+  await expect(dialog).toHaveCount(0)
+
+  // 殻の明暗の切り替えが段階の画面の色 (色の変数) に効く
+  // (e2e は DOM の型を持たないので, ページの中で動かす関数を文字列で渡す)
+  const color = () =>
+    page.evaluate<string>(
+      `getComputedStyle(document.querySelector('nav[aria-label="移動"]')).backgroundColor`,
+    )
+  const light = await color()
+  await page.getByRole('button', { name: '暗い表示にする' }).click()
+  await expect(page.locator('html')).toHaveClass(/dark/)
+  await expect.poll(color).not.toBe(light)
+  await page.getByRole('button', { name: '明るい表示にする' }).click()
+  await expect.poll(color).toBe(light)
+
+  // 段階の中の移動 (左の欄の結果) は /infer の下に留まる
+  await page.getByRole('link', { name: '結果', exact: true }).click()
+  await expect(page).toHaveURL(/\/infer\/results$/)
+  await expect(page.getByRole('heading', { name: '結果', exact: true })).toBeVisible()
+
+  // 問題の設定の段階に戻ると, 同じ問題の設定を開く
+  await stages.getByRole('link', { name: '問題の設定' }).click()
+  await expect(page).toHaveURL(new RegExp(`/problem/problems/${opened}$`))
+  await expect(page.getByRole('heading', { name: '解約の見込み' })).toBeVisible()
+
+  expect(errors).toEqual([])
+})
+
 // 段階の根の部品は段階ごとに分けて読む. 最初は開いた段階の分だけを読み, 各段階の頭を直に
 // 開いても再読み込みしても段階の画面を出す
 test('段階の画面を段階ごとに読み, 直に開いても再読み込みしても出す', async ({ page }) => {
@@ -334,6 +407,16 @@ test('段階の画面を段階ごとに読み, 直に開いても再読み込み
     page.getByRole('navigation', { name: '段階' }).getByRole('link', { name: '学習・評価' }),
   ).toHaveAttribute('aria-current', 'step')
   expect(chunks.size).toBe(4)
+
+  // 推論の段階の中の経路を直に開き, 再読み込みしても同じ画面を出す
+  await page.goto('/infer/results')
+  await expect(page.getByRole('heading', { name: '結果', exact: true })).toBeVisible()
+  await page.reload()
+  await expect(page.getByRole('heading', { name: '結果', exact: true })).toBeVisible()
+  await expect(
+    page.getByRole('navigation', { name: '段階' }).getByRole('link', { name: '推論' }),
+  ).toHaveAttribute('aria-current', 'step')
+  expect(chunks.size).toBe(5)
 
   expect(errors).toEqual([])
 })

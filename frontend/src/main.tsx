@@ -7,6 +7,7 @@ import 'ml-pathfinder-frontend/stage.css'
 import 'ml-fathom-frontend/stage.css'
 import 'ml-createarchitecture-frontend/stage.css'
 import 'ml-dashboard-frontend/stage.css'
+import 'ml-provide-frontend/stage.css'
 import { Shell } from './Shell'
 
 createRoot(document.getElementById('root')!).render(

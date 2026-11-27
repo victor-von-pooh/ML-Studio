@@ -85,12 +85,12 @@ def create_api(
 | 上の帯 | アプリの名前, プロジェクトの欄, 段階の並び (問題の設定 → データの分析 → モデルの作成・選定 → 学習・評価 → 推論), 明暗の切り替え |
 | 段階の画面 | 経路の頭 (`/problem` など) に合う段階の根の部品. `basename`, `apiBase`, 選んだ `project`, `onProjectChange`, `onProjectsChange`, `embedded` (true) を渡す |
 
-- 段階は location の経路の最初の区切り (`/problem` など) で選ぶ. `/`, 知らない頭, まだ載せていない段階の頭は `/problem` に移す (最初の段階から始めるため)
+- 段階は location の経路の最初の区切り (`/problem` など) で選ぶ. `/` と知らない頭は `/problem` に移す (最初の段階から始めるため)
 - 段階の並びを押すと, 殻が `history.pushState` で経路を段階の頭に替え, 段階ごとに別の `key` を付けて根の部品を作り直す (部品のルーターが新しい経路を読み直すようにするため). 戻ると進むで段階をまたいだときは, 殻が `popstate` で知って同じように作り直す
 - 段階の中の移動は経路の頭を変えないので, 殻は知らなくてよい (段階を選ぶのに頭しか使わないため)
 - 段階の根の部品は段階ごとに分けたチャンクにあり, その段階を初めて開くときに読む (8 の節). 読む間は上の帯を出したまま, 段階の場所に読み込み中と出す (`role="status"`. 帯の操作を待たせず, 何を待っているかを見せるため)
 - 段階の画面を読み込めないとき (ネットワークの誤り, 殻の画面を作り直した後に古いファイルの名前を読んだときなど) と, 段階の部品が描く途中で例外を出したときは, 上の帯を出したまま, 段階の場所に出せないことと理由と再読み込みのボタンを出す (`role="alert"`. 1 つの段階の誤りで殻の全体を消さないため). 別の段階に移るときと今の段階を押し直したときに出し直す (段階の中の戻ると進むでは出し直さない). 読めなかった段階は React が失敗を覚えて同じ誤りを返すので, ページの再読み込みで読み直す (作り直した後の新しいファイルの名前も再読み込みで読めるため)
-- 載せた段階の並びはいつでも押せ, 段階を移っても選んだプロジェクトを引き継ぐ (前の段階に戻って直せるようにするため). まだ載せていない段階は押せず, 準備中と出す (並びの全体を見せつつ, 動かない画面へ移さないため)
+- 段階の並びはいつでも押せ, 段階を移っても選んだプロジェクトを引き継ぐ (前の段階に戻って直せるようにするため)
 - 今の段階を押し直すと, 履歴を増やさずに段階の頭から部品を作り直す (段階の中で迷ったときに最初へ戻れるようにするため). 選んだプロジェクトがあれば, 作り直した部品がそれを開く
 - 選んだプロジェクトは殻が状態として持ち, 根の部品に props で渡す. 再読み込みで保つため, `localStorage` の `studio-project` にも残す (読めない環境では選んでいない形で始める). 上の帯の欄で選んだときと, 部品が `onProjectChange` を呼んだときに替える
 - 明暗は殻が持ち, `html` 要素のクラス `dark` と `localStorage` の `theme` に置く (5 つのアプリと同じ場所にして, 段階の部品がそのまま読めるようにするため)
@@ -125,7 +125,7 @@ def create_api(
 
 殻はサーバーの側に自分の置き場を持たない (選んだプロジェクトと明暗は画面の `localStorage` に持つ).
 
-- 各アプリの置き場 (`data_dir`) は渡さず, 各アプリの既定 (環境変数かホームの下) のままにする (単独で作ったものを殻でも, 殻で作ったものを単独でも開けるようにするため). ML-Pathfinder は `ML_PATHFINDER_HOME` か `~/.ml-pathfinder/`, ML-Fathom は `ML_FATHOM_HOME` か `~/.ml-fathom/`, ML-CreateArchitecture は `ML_CREATEARCHITECTURE_HOME` か `~/.ml-createarchitecture/`, ML-Dashboard は `ML_DASHBOARD_HOME` か `~/.ml-dashboard/`. ML-CreateArchitecture の自作の部品 (`modules`) も渡さず, その既定 (起動の設定 `ML_CREATEARCHITECTURE_MODULES`) のままにする. 殻は ML-CreateArchitecture の extra のうち `project` だけを入れるので, 外部のライブラリの部品 (huggingface, timm, torchvision など) は殻では使えず, 部品の一覧で使えないと出る (殻の 1 つの環境を軽く保つため)
+- 各アプリの置き場 (`data_dir`) は渡さず, 各アプリの既定 (環境変数かホームの下) のままにする (単独で作ったものを殻でも, 殻で作ったものを単独でも開けるようにするため). ML-Pathfinder は `ML_PATHFINDER_HOME` か `~/.ml-pathfinder/`, ML-Fathom は `ML_FATHOM_HOME` か `~/.ml-fathom/`, ML-CreateArchitecture は `ML_CREATEARCHITECTURE_HOME` か `~/.ml-createarchitecture/`, ML-Dashboard は `ML_DASHBOARD_HOME` か `~/.ml-dashboard/`, ML-Provide は `ML_PROVIDE_HOME` か `~/.ml-provide/`. ML-CreateArchitecture の自作の部品 (`modules`) と ML-Provide の自作の部品と手順 (`units`, `procedures`) も渡さず, その既定 (起動の設定 `ML_CREATEARCHITECTURE_MODULES`, `ML_PROVIDE_UNITS`, `ML_PROVIDE_PROCEDURES`) のままにする (単独と同じ設定で同じ部品を使えるようにするため). 殻は ML-CreateArchitecture の extra のうち `project` だけを入れるので, 外部のライブラリの部品のうち, 他の段階のために殻の環境に入るもの (推論の段階が使う torchvision) の部品だけが使え, 他 (huggingface, timm など) は殻では使えず, 部品の一覧で使えないと出る (殻の 1 つの環境を軽く保つため)
 - 問題の設定の置き場は, 殻が ML-Pathfinder の `create_api()` を先に呼び, その `app.state.problems_dir` を他の 4 つのアプリの `create_api` に `problems_dir` として渡す (場所を決めるのを ML-Pathfinder だけにし, 殻が中の作りに頼らず, アプリごとに場所が食い違わないようにするため)
 
 ## 7. 安全
@@ -142,7 +142,7 @@ def create_api(
 - 起動は 1 つのコマンド `ml-studio` (`--host`, `--port`, `--allowed-host`). 各アプリの設定は各アプリの環境変数のまま (6 の節). 起動するとトークン付きの `/api/auth` の URL を出す. 段階のアプリが起動を止めた場合 (読めない自作の部品など) は, 理由を出して終わる
 - 1 つのプロセス (worker 1 つ) で動かす. 学習・評価の段階のジョブの管理と, 起動時に部品を入れる登録簿がプロセスの中の状態のため
 - 学習・評価の段階のアプリは 1 つのプロセスで 1 度だけ作り, 同じ置き場を 2 つのアプリに渡さない (ジョブのプロセスとロックをアプリごとに持つため). 学習のジョブは登録した学習のプロジェクトの Python の子プロセスとして動き, 学習のまとまりと環境の準備は殻のプロセスの中のスレッドで進む
-- 自作の部品の登録簿 (ML-ModelControl の登録簿) はプロセスに 1 つで, 部品を入れるアプリ (モデルの作成・選定の段階, 推論の段階) の間で共有になる. 同じモジュールは 1 度だけ入る. 同じ部品の名前を別々のモジュールで宣言すると, 後から `create_api` を呼んだアプリ (段階の並びの後ろ) が起動を止める. モデルの作成・選定の段階の部品の一覧は登録簿の全体を出すので, 他のアプリが入れた部品も出る
+- 自作の部品の登録簿 (ML-ModelControl の登録簿) はプロセスに 1 つで, 部品を入れるアプリ (モデルの作成・選定の段階, 推論の段階) の間で共有になる. 同じモジュールは 1 度だけ入り, 2 つのアプリの起動の設定に同じモジュールを書いてよい (殻のテストで, 両方に書いて起動し, モデルの作成・選定の段階で確かめて保存した定義から推論の段階で一式を作って推論できることを確かめる). 同じ部品の名前を別々のモジュールで宣言すると, 後から `create_api` を呼んだアプリ (段階の並びの後ろ) が起動を止める. モデルの作成・選定の段階の部品の一覧は登録簿の全体を出すので, 他のアプリが入れた部品も出る
 - 殻は 5 つのアプリの `create_api` を段階の並びの順に 1 度ずつ呼んで mount する. ML-Pathfinder を先に呼び, その問題の設定の置き場を他に渡す (6 の節). 各アプリの例外ハンドラ, 子プロセス, スレッドは mount した sub-app の中でそのまま動く
 - 各アプリの画面は殻の画面のビルドに取り込み, 各アプリのビルド済みの画面 (`static/`) は使わない (共通の部品と 1 つのビルドにまとめるため)
 
@@ -154,12 +154,13 @@ def create_api(
 | データの分析 | `ML-Fathom/` | ML-EDA, ML-Quest |
 | モデルの作成・選定 | `ML-CreateArchitecture/` | ML-ModelControl (ML-EDA と ML-Quest は git の依存. extra `project`) |
 | 学習・評価 | `ML-Dashboard/` | ML-Found, ML-Quest (extra `problem`) |
+| 推論 | `ML-Provide/` | ML-Inference, ML-Quest (ML-EDA と ML-ModelControl は git の依存. ML-Inference も ML-EDA と ML-ModelControl を git の URL で求める) |
 
 - submodule の中の submodule も取る (`git submodule update --init --recursive`. CI の checkout も `submodules: recursive`). 各アプリがライブラリを submodule で持ち, 殻はそれを使うため
-- バックエンドは 1 つの Python の環境 (uv) に, 各アプリのパッケージとライブラリを submodule から editable で入れる (`backend/pyproject.toml` の `tool.uv.sources`). アプリが git の依存で求めるライブラリ (ML-CreateArchitecture の ML-EDA と ML-Quest) も, 下の上書きで殻の 1 つの求め方に置き換える. PyTorch は ML-CreateArchitecture と ML-Dashboard と同じく Linux では CUDA の無い版の index から取る (index はアプリの pyproject.toml のものが効かず, 殻の pyproject.toml に書く要があるため. CI の時間と大きさを抑えるため)
-- 同じライブラリを 2 つ以上のアプリが使う場合は, 殻の `tool.uv.override-dependencies` で 1 つの求め方に上書きし, `tool.uv.sources` でアプリの submodule のうち 1 つ (今は ML-Fathom の ML-EDA と ML-Quest) を指す (1 つの環境には 1 つの版しか入らず, アプリごとの submodule の版や git の版の求めがぶつかるため). 各アプリの submodule の版は下の「共通のライブラリの版」にそろえる (R8). 上書きは extra ごと置き換えるので, 各アプリが使う extra を全て書く. そろえた版で各段階の API が動くことは, CI で殻の環境のまま各アプリのテストを流して確かめる (殻のテストと通しの確かめは各段階の API の一部しか通らないため)
+- バックエンドは 1 つの Python の環境 (uv) に, 各アプリのパッケージとライブラリを submodule から editable で入れる (`backend/pyproject.toml` の `tool.uv.sources`). アプリが git の依存で求めるライブラリ (ML-CreateArchitecture の ML-EDA と ML-Quest, ML-Provide の ML-EDA と ML-ModelControl) と, ライブラリが `dependencies` に git の URL で求めるライブラリ (ML-Inference の ML-EDA と ML-ModelControl) も, 下の上書きで殻の 1 つの求め方に置き換える (上書きしないと, submodule の求めと URL がぶつかって解けないため). PyTorch と torchvision は ML-CreateArchitecture, ML-Dashboard, ML-Provide と同じく Linux では CUDA の無い版の index から取る (index はアプリの pyproject.toml のものが効かず, 殻の pyproject.toml に書く要があるため. CI の時間と大きさを抑えるため)
+- 同じライブラリを 2 つ以上のアプリが使う場合は, 殻の `tool.uv.override-dependencies` で 1 つの求め方に上書きし, `tool.uv.sources` でアプリの submodule のうち 1 つ (今は ML-Fathom の ML-EDA と ML-Quest, ML-CreateArchitecture の ML-ModelControl) を指す (1 つの環境には 1 つの版しか入らず, アプリごとの submodule の版や git の版の求めがぶつかるため). 各アプリの submodule の版は下の「共通のライブラリの版」にそろえる (R8). 上書きは extra ごと置き換えるので, 各アプリが使う extra を全て書く. そろえた版で各段階の API が動くことは, CI で殻の環境のまま各アプリのテストを流して確かめる (殻のテストと通しの確かめは各段階の API の一部しか通らないため)
 - 画面は 1 つの pnpm workspace (`frontend/pnpm-workspace.yaml`) に各アプリの画面のパッケージを加え, 共通の依存 (react, react-router, TanStack Query など) を 1 つの版に解く. react と react-dom は vite の `dedupe` でも 1 つにする (2 つ読むとフックが動かないため). 開発用のサーバーが submodule の画面のソースを配れるよう, vite の `server.fs.allow` に各アプリの画面のディレクトリを加える
-- 画面のビルドは殻の入口 (上の帯と段階の並び) と段階ごとのチャンクに分け, 段階の根の部品は `React.lazy` と動的な `import()` で, その段階を開いたときに読む (図の部品やキャンバスの部品で段階の部品の全体が 2.6 MB 近くあり, 1 つにまとめると段階を足すたびに最初の読み込みが重くなり, 段階を足すと大きさの閾値も超えるため). 段階の間で共通の依存 (react-router, TanStack Query など) は Vite が別のチャンクに分けて使い回す. 大きさの警告の閾値は 2500 kB のままにし, 上げない. 段階を足すときも同じ形で分ける
+- 画面のビルドは殻の入口 (上の帯と段階の並び) と段階ごとのチャンクに分け, 段階の根の部品は `React.lazy` と動的な `import()` で, その段階を開いたときに読む (図の部品やキャンバスの部品で段階の部品の全体が 2.7 MB 近くあり, 1 つにまとめると段階を足すたびに最初の読み込みが重くなり, 段階を足すと大きさの閾値も超えるため). 段階の間で共通の依存 (react-router, TanStack Query など) は Vite が別のチャンクに分けて使い回す. 大きさの警告の閾値は 2500 kB のままにし, 上げない. 段階を足すときも同じ形で分ける
 
 ### 共通のライブラリの版
 
@@ -167,8 +168,8 @@ def create_api(
 
 | ライブラリ | 版 | 使うアプリ |
 | --- | --- | --- |
-| ML-Quest | `8ec1524` | ML-Pathfinder (submodule), ML-Fathom (submodule), ML-CreateArchitecture (git の依存), ML-Dashboard (submodule) |
-| ML-EDA | `2a7782f` | ML-Fathom (submodule), ML-CreateArchitecture (git の依存), ML-Pathfinder (ML-Quest を通して) |
+| ML-Quest | `8ec1524` | ML-Pathfinder (submodule), ML-Fathom (submodule), ML-CreateArchitecture (git の依存), ML-Dashboard (submodule), ML-Provide (submodule) |
+| ML-EDA | `2a7782f` | ML-Fathom (submodule), ML-CreateArchitecture (git の依存), ML-Provide (git の依存. ML-Inference と ML-Quest を通しても), ML-Pathfinder (ML-Quest を通して) |
 | ML-ModelControl | `24d3720` | ML-CreateArchitecture (submodule), ML-Provide (git の依存. ML-Inference を通しても) |
 
 - 殻の木の中の同じライブラリの submodule と, 載せた各アプリが git の依存で直に持つライブラリの lock の版が, 全てこの表の版であることを, CI で `scripts/check_versions.py` が表を読んで確かめる (アプリの submodule を上げ忘れると, 殻の 1 つの環境のどの版で動いているかが分からなくなるため)

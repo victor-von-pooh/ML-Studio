@@ -15,12 +15,13 @@ const NONE = ''
 const lazyStage = (load: () => Promise<{ StageApp: ComponentType<StageAppProps> }>) =>
   lazy(async () => ({ default: (await load()).StageApp }))
 
-/** 殻に載っている段階の根の部品 (載っていない段階は無し) */
-const STAGE_APPS: Partial<Record<StageKey, ComponentType<StageAppProps>>> = {
+/** 段階の根の部品 */
+const STAGE_APPS: Record<StageKey, ComponentType<StageAppProps>> = {
   problem: lazyStage(() => import('ml-pathfinder-frontend')),
   data: lazyStage(() => import('ml-fathom-frontend')),
   model: lazyStage(() => import('ml-createarchitecture-frontend')),
   train: lazyStage(() => import('ml-dashboard-frontend')),
+  infer: lazyStage(() => import('ml-provide-frontend')),
 }
 
 /** 段階の画面を読む間に段階の場所に出す表示 */
@@ -118,7 +119,7 @@ function ProjectSelect({
   )
 }
 
-/** 段階の並び (載っていない段階は押せず, まだ載っていないと出す) */
+/** 段階の並び */
 function StageNav({ stage, onGo }: { stage: StageKey; onGo: (stage: StageKey) => void }) {
   // 新しいタブで開くなどの操作はブラウザに任せ, 普通に押したときだけ殻が移る
   const click = (key: StageKey) => (event: MouseEvent<HTMLAnchorElement>) => {
@@ -137,31 +138,18 @@ function StageNav({ stage, onGo }: { stage: StageKey; onGo: (stage: StageKey) =>
                 →
               </span>
             )}
-            {item.available ? (
-              <a
-                href={stageBase(item.key)}
-                onClick={click(item.key)}
-                aria-current={item.key === stage ? 'step' : undefined}
-                className={
-                  item.key === stage
-                    ? 'rounded-lg bg-accent-soft px-2 py-1 font-medium text-accent-text'
-                    : 'rounded-lg px-2 py-1 text-ink-2 hover:bg-surface-2'
-                }
-              >
-                {item.label}
-              </a>
-            ) : (
-              <span
-                title={`${item.app} はまだ載っていない`}
-                className="cursor-not-allowed rounded-lg px-2 py-1 text-ink-3"
-              >
-                {item.label}
-                <span className="sr-only"> (まだ載っていないので開けない)</span>
-                <span aria-hidden className="ml-1 rounded border border-line px-1 text-[10px]">
-                  準備中
-                </span>
-              </span>
-            )}
+            <a
+              href={stageBase(item.key)}
+              onClick={click(item.key)}
+              aria-current={item.key === stage ? 'step' : undefined}
+              className={
+                item.key === stage
+                  ? 'rounded-lg bg-accent-soft px-2 py-1 font-medium text-accent-text'
+                  : 'rounded-lg px-2 py-1 text-ink-2 hover:bg-surface-2'
+              }
+            >
+              {item.label}
+            </a>
           </li>
         ))}
       </ol>
@@ -212,16 +200,14 @@ export function Shell() {
         {/* 段階を移ると境界も作り直し, 前の段階の誤りを残さない */}
         <StageBoundary key={location.key}>
           <Suspense fallback={<StageLoading />}>
-            {StageApp && (
-              <StageApp
-                basename={stageBase(location.stage)}
-                apiBase={stageApiBase(location.stage)}
-                project={project}
-                onProjectChange={selectProject}
-                onProjectsChange={projects.reload}
-                embedded
-              />
-            )}
+            <StageApp
+              basename={stageBase(location.stage)}
+              apiBase={stageApiBase(location.stage)}
+              project={project}
+              onProjectChange={selectProject}
+              onProjectsChange={projects.reload}
+              embedded
+            />
           </Suspense>
         </StageBoundary>
       </div>

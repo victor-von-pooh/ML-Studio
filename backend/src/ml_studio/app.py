@@ -14,6 +14,7 @@ from ml_createarchitecture.app import create_api as create_model_api
 from ml_dashboard.app import create_api as create_train_api
 from ml_fathom.app import create_api as create_data_api
 from ml_pathfinder.app import create_api as create_problem_api
+from ml_provide.app import create_api as create_infer_api
 
 # ビルド済みの画面を置く場所 (パッケージの中)
 STATIC_DIR = (Path(__file__).parent / "static").resolve()
@@ -33,11 +34,13 @@ TOKEN_HEADER = "x-studio-token"
 API_PREFIX = "/api"
 AUTH_PATH = "/api/auth"
 
-# 問題の設定, データの分析, モデルの作成・選定, 学習・評価の段階の API の頭
+# 問題の設定, データの分析, モデルの作成・選定, 学習・評価, 推論の段階の
+# API の頭
 PROBLEM_PREFIX = "/api/problem"
 DATA_PREFIX = "/api/data"
 MODEL_PREFIX = "/api/model"
 TRAIN_PREFIX = "/api/train"
+INFER_PREFIX = "/api/infer"
 
 # 合わない API の経路で 404 を返すメソッド
 API_METHODS = ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
@@ -313,6 +316,11 @@ def create_stage_apis() -> tuple[dict[str, FastAPI], Path]:
         経路の頭ごとの API のアプリ (段階の並びの順)
     problems_dir: Path
         ML-Pathfinder が決めた問題の設定の置き場
+
+    Raises
+    ----------
+    ValueError
+        段階のアプリが起動を止める場合 (読めない自作の部品のモジュールなど)
     """
     # 問題の設定の段階 (置き場は ML-Pathfinder の既定)
     problem_api = create_problem_api()
@@ -328,9 +336,14 @@ def create_stage_apis() -> tuple[dict[str, FastAPI], Path]:
     # 学習・評価の段階 (アプリの置き場は ML-Dashboard の既定. ジョブの
     # プロセスとロックをアプリごとに持つので, 1 つのプロセスで 1 度だけ作る)
     train_api = create_train_api(problems_dir=problems_dir)
+
+    # 推論の段階 (アプリの置き場と自作の部品と手順は ML-Provide の既定.
+    # 自作の部品の登録簿は ML-CreateArchitecture と共有)
+    infer_api = create_infer_api(problems_dir=problems_dir)
     apis = {
         PROBLEM_PREFIX: problem_api, DATA_PREFIX: data_api,
-        MODEL_PREFIX: model_api, TRAIN_PREFIX: train_api
+        MODEL_PREFIX: model_api, TRAIN_PREFIX: train_api,
+        INFER_PREFIX: infer_api
     }
 
     return apis, problems_dir
@@ -391,6 +404,11 @@ def create_app(
     ----------
     app: FastAPI
         アプリ
+
+    Raises
+    ----------
+    ValueError
+        トークンが Cookie に置けない場合と, 段階のアプリが起動を止める場合
     """
     # 殻のアプリ (仕様の画面は閉じる)
     app = FastAPI(

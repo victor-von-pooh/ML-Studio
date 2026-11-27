@@ -7,12 +7,13 @@ cd "$(dirname "$0")"
 WORK="$PWD/.work"
 PORT="${E2E_PORT:-8796}"
 
-# 前回の結果を消し, 問題の設定, データの分析, モデルの作成・選定, 学習・評価の
-# 段階の置き場を作業用のディレクトリにして決まったトークンで起動
+# 前回の結果を消し, 5 つの段階の置き場を作業用のディレクトリにし, 手元の起動の
+# 設定の自作の部品と手順を読まずに, 決まったトークンで起動
 rm -rf "$WORK"
 mkdir -p "$WORK"
 cd ../../backend
 ML_PATHFINDER_HOME="$WORK/pathfinder" ML_FATHOM_HOME="$WORK/fathom" \
   ML_CREATEARCHITECTURE_HOME="$WORK/createarchitecture" ML_CREATEARCHITECTURE_MODULES= \
   ML_DASHBOARD_HOME="$WORK/dashboard" \
+  ML_PROVIDE_HOME="$WORK/provide" ML_PROVIDE_UNITS= ML_PROVIDE_PROCEDURES= \
   ML_STUDIO_TOKEN=e2e-token exec uv run ml-studio --port "$PORT"

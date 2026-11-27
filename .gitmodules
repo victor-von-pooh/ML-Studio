@@ -10,3 +10,6 @@
 [submodule "ML-Dashboard"]
 	path = ML-Dashboard
 	url = https://github.com/victor-von-pooh/ML-Dashboard.git
+[submodule "ML-Provide"]
+	path = ML-Provide
+	url = https://github.com/victor-von-pooh/ML-Provide.git
