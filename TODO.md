@@ -21,11 +21,7 @@
 
 ## 優先度 低
 
-### 殻でも外部のライブラリの部品を使えるようにする
-- 何を: 殻の環境に ML-CreateArchitecture の extra (huggingface, timm など) を選んで入れる方法 (make setup の引数など) を作る. 殻の `override-dependencies` の `ml-modelcontrol` は extra ごと置き換えるので, 選んだ extra を上書きにも書く
-- なぜ: 殻は extra の `project` だけを入れるので, 単独で外部のライブラリの部品を使って保存したモデルの定義を殻で開くと, 部品が使えないと出るため
-- 終わりの条件: 選んだ extra を入れた殻で, 外部のライブラリの部品を使ったモデルの定義を開いて確かめられる. docs/DESIGN.md の 6 の節を直す
-- つながり: 無し
+無し
 
 ## 条件待ち
 

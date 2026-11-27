@@ -7,13 +7,34 @@ PORT ?= 8760
 # (:= で 1 回だけ作る. ?= では参照のたびに作り直され, 表示と起動で値が変わる)
 DEV_TOKEN := $(or $(DEV_TOKEN),$(shell python3 -c 'import secrets; print(secrets.token_urlsafe(16))'))
 
-.PHONY: setup dev dev-backend dev-frontend build serve check
+# 殻の環境に足す, モデルの作成・選定の段階の外部のライブラリの部品の extra
+# (make setup EXTRAS="timm einops" のように空白で区切る. 既定は無し)
+EXTRAS ?=
+comma := ,
+empty :=
+space := $(empty) $(empty)
 
-# 依存のインストール (submodule の中の submodule も取り出す)
+.PHONY: setup extras dev dev-backend dev-frontend build serve check
+
+# 依存のインストール (submodule の中の submodule も取り出す. EXTRAS が
+# あれば, その extra も足す)
 setup:
 	git submodule update --init --recursive
 	cd backend && uv sync
 	cd frontend && pnpm install
+ifneq ($(strip $(EXTRAS)),)
+	$(MAKE) extras EXTRAS="$(EXTRAS)"
+endif
+
+# 殻の環境に ML-CreateArchitecture の extra (ML-ModelControl の同じ名前の
+# extra) を足す. 名前は ML-CreateArchitecture の extra (project を除く) と
+# 確かめ (scripts/check_extras.py), 入っているライブラリは backend/uv.lock の
+# 版のまま (制約) にする.
+# 殻の pyproject.toml の上書きは ml-modelcontrol を extra 無しに置き換える
+# ので, その設定を読まずに (--no-config) 入れる. uv sync で既定に戻る
+extras:
+	cd backend && uv run --no-sync python ../scripts/check_extras.py $(EXTRAS)
+	cd backend && uv export --frozen --no-hashes --no-emit-local --no-header --no-annotate | uv pip install --no-config --python .venv --constraints /dev/stdin -e "../ML-CreateArchitecture/ML-ModelControl[$(subst $(space),$(comma),$(strip $(EXTRAS)))]"
 
 # 開発用のサーバー (API と画面を並べて起動. 別々の端末なら dev-backend と dev-frontend)
 dev:
