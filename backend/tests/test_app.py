@@ -1,3 +1,4 @@
+import importlib.util
 import shutil
 import sys
 import time
@@ -27,6 +28,13 @@ DASHBOARD_DEMO = Path(__file__).parents[2] / "ML-Dashboard" / "demo"
 
 # テストの画面の index.html の中身
 INDEX = "<!doctype html><title>ML-Studio</title>"
+
+# モデルの作成・選定の段階の外部のライブラリの部品の出どころ (部品の一覧の
+# source. 読み込むモジュールの名前と同じ)
+LIBRARY_SOURCES = [
+    "torchvision", "timm", "torchaudio", "einops", "kornia", "monai",
+    "segmentation_models_pytorch", "transformers", "torch_geometric"
+]
 
 
 @pytest.fixture
@@ -458,6 +466,63 @@ def test_model_api_mounted(client: TestClient, tmp_path: Path) -> None:
     # 部品の一覧と保存したモデルの一覧
     assert client.get("/api/model/units").status_code == 200
     assert client.get("/api/model/models").status_code == 200
+
+
+def importable(name: str) -> bool:
+    """
+    ライブラリが入っていて読み込めるかを返す関数
+
+    Parameters
+    ----------
+    name: str
+        ライブラリの名前
+
+    Returns
+    ----------
+    loadable: bool
+        入っていて読み込めれば True
+    """
+    # 入っていない場合と, 読み込みで失敗する場合 (版のずれなど)
+    if importlib.util.find_spec(name) is None:
+        return False
+    try:
+        importlib.import_module(name)
+    except Exception:
+        return False
+
+    return True
+
+
+def test_library_units_follow_env(client: TestClient) -> None:
+    """
+    モデルの作成・選定の段階の部品の一覧で, 外部のライブラリの部品が殻の
+    環境に入ったライブラリの分だけ使えると出ることを確かめる関数
+
+    既定の環境 (CI) では torchvision の部品だけが使え, make extras で
+    extra を足した環境では, その extra のライブラリのうち読み込めるものの
+    部品も使える
+
+    Parameters
+    ----------
+    client: TestClient
+        トークン付きの利用者
+
+    Returns
+    ----------
+    None
+    """
+    # ライブラリごとの, 使える部品の有無 (入っていても定義から作れない
+    # 部品があるので, 1 つでも使えるかで見る. 入っていても版のずれで
+    # 読み込めないライブラリ (Linux の torchaudio など) の部品は使えない)
+    units = client.get("/api/model/units").json()
+    for source in LIBRARY_SOURCES:
+        listed = [unit for unit in units if unit["source"] == source]
+        assert listed, source
+        loadable = importable(source)
+        assert any(unit["available"] for unit in listed) == loadable, \
+            source
+        if not loadable:
+            assert all(unit["reason"] for unit in listed), source
 
 
 def test_train_api_mounted(client: TestClient, tmp_path: Path) -> None:

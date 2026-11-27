@@ -21,10 +21,10 @@
 
 ## 優先度 低
 
-### 殻でも外部のライブラリの部品を使えるようにする
-- 何を: 殻の環境に ML-CreateArchitecture の extra (huggingface, timm など) を選んで入れる方法 (make setup の引数など) を作る. 殻の `override-dependencies` の `ml-modelcontrol` は extra ごと置き換えるので, 選んだ extra を上書きにも書く
-- なぜ: 殻は extra の `project` だけを入れるので, 単独で外部のライブラリの部品を使って保存したモデルの定義を殻で開くと, 部品が使えないと出るため
-- 終わりの条件: 選んだ extra を入れた殻で, 外部のライブラリの部品を使ったモデルの定義を開いて確かめられる. docs/DESIGN.md の 6 の節を直す
+### Linux の殻で torchaudio の部品を使えるようにする
+- 何を: 上流が殻の torch (2.15) に合う torchaudio を出したら, Linux で `make extras EXTRAS=torchaudio` (と `all`) を足して torchaudio の部品が使えるかを確かめ, 要るなら殻の lock の torch の版を合わせる (今は PyPI にも CPU の index にも torch 2.15 に合う torchaudio が無く, 2.11 までしか無い)
+- なぜ: torch 2.15 と torchaudio 2.11 の上流の版のずれで, Linux では torchaudio を読み込めず, torchaudio の部品が使えないため
+- 終わりの条件: Linux で torchaudio を足した殻で, モデルの作成・選定の段階の部品の一覧に torchaudio の部品が使えると出る. docs/DESIGN.md の 6 と 8 の節, README, docs/GUIDE.md の Linux の断りを消す
 - つながり: 無し
 
 ## 条件待ち

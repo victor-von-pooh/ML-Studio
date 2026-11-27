@@ -46,6 +46,8 @@ dev = [
 # (ML-EDA の all は自分を指す extra で上書きでは効かないため, 中身を並べる).
 # ML-ModelControl は ML-Inference が dependencies に git の URL で求めるので,
 # 上書きしないと submodule の求めと URL がぶつかるため
+# 外部のライブラリの部品の extra (ML-ModelControl の timm など) はここと
+# lock に書かず, 利用者が make extras で足す (docs/DESIGN.md の 8 の節)
 [tool.uv]
 override-dependencies = [
     "ml-eda[parquet,excel,image,text,audio]",

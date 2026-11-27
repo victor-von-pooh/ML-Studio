@@ -195,7 +195,8 @@ make serve
 | 段階に「選んだ問題の設定」が出ない | 上の帯の欄で問題の設定を選んでいるかを確かめる |
 | データの分析に「プロジェクトへ書き出す」が出ない, モデルの作成・選定や学習・評価に記録の場所が出ない | 問題の設定の段階で学習のプロジェクトを書き出していない. 5 章の 4 で書き出す (書き出した場所が問題の設定に記録される) |
 | 推論の「実験の一覧から登録」に実験が出ない | 選んだ問題の設定のプロジェクトの, 推論の一式を作った実験だけが並ぶ. 学習・評価の段階でジョブが「完了」になったか (「後の処理中」でないか) を確かめる. 他の問題の設定の実験は「全ての問題の設定の実験を出す」に印を付けると出る |
-| モデルの作成・選定の部品の一覧で, 外部のライブラリの部品が使えないと出る | 殻では torchvision の部品だけが使え, 他 (huggingface, timm など) は使えない. それらの部品は ML-CreateArchitecture を単独で起動して使う |
+| モデルの作成・選定の部品の一覧で, 外部のライブラリの部品が使えないと出る | 殻は既定では torchvision の部品だけが使える. 他 (huggingface, timm など) は, 殻を止めて `make extras EXTRAS="timm einops"` のようにその部品の extra を足し, 起動し直す (選べる名前は `make extras-list` で出る. Linux では torchaudio の部品は足しても使えない. `make setup` を `EXTRAS` 無しで実行すると消える) |
+| 殻を更新 (`git pull`) した後, 足した外部のライブラリの部品が読めない | 足したライブラリは前の版のまま残る. `make setup EXTRAS="timm einops"` のように足した extra を選んで入れ直す |
 | 段階を移ったら書きかけが消えた | 書きかけは下書きに残っている. 4 章の表の通りに下書きを戻す |
 | 各段階の画面の誤りや操作が分からない | 各アプリの操作ガイドの「困ったとき」を見る ([ML-Pathfinder](https://github.com/victor-von-pooh/ML-Pathfinder/blob/main/docs/GUIDE.md#9-困ったとき), [ML-Fathom](https://github.com/victor-von-pooh/ML-Fathom/blob/main/docs/GUIDE.md#20-困ったとき), [ML-CreateArchitecture](https://github.com/victor-von-pooh/ML-CreateArchitecture/blob/main/docs/GUIDE.md#12-困ったとき), [ML-Dashboard](https://github.com/victor-von-pooh/ML-Dashboard/blob/main/docs/GUIDE.md#9-困ったとき), [ML-Provide](https://github.com/victor-von-pooh/ML-Provide/blob/main/docs/GUIDE.md#13-困ったとき)) |
 | アプリを止めたい | `make serve` を動かしている端末で Ctrl+C |
