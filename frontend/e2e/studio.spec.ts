@@ -214,6 +214,78 @@ test('選んだ問題の設定を引き継いでモデルの作成・選定の�
   expect(errors).toEqual([])
 })
 
+// 殻で選んだ問題の設定を引き継いで学習・評価の段階に移り, ML-Dashboard の画面が殻の問題の
+// 設定の欄を出し, 殻の明暗の切り替えが段階の画面に効くことを確かめる
+test('選んだ問題の設定を引き継いで学習・評価の段階を開く', async ({ page }) => {
+  const errors: string[] = []
+  page.on('pageerror', (error) => errors.push(error.message))
+  page.on('console', (message) => {
+    if (message.type() === 'error') errors.push(message.text())
+  })
+
+  // 問題の設定を作って殻の欄で選ぶ
+  await page.goto('/api/auth?token=e2e-token')
+  await expect(page).toHaveURL(/\/problem$/)
+  await page.getByLabel(/^問題の名前/).fill('機械の故障')
+  await page.getByRole('button', { name: '作る', exact: true }).click()
+  await expect(page).toHaveURL(/\/problem\/problems\/[^/]+$/)
+  const opened = new URL(page.url()).pathname.split('/').pop()!
+  const select = page.getByLabel('プロジェクト', { exact: true })
+  await expect(select).toHaveValue(opened)
+
+  // 段階の並びで学習・評価に移ると, ML-Dashboard の画面が API を /api/train の下に呼んで開き,
+  // 殻で選んだ問題の設定を読む
+  const problem = page.waitForResponse(
+    (response) => new URL(response.url()).pathname === `/api/train/problems/${opened}/project`,
+  )
+  const stages = page.getByRole('navigation', { name: '段階' })
+  await stages.getByRole('link', { name: '学習・評価' }).click()
+  await expect(page).toHaveURL(/\/train$/)
+  expect((await problem).status()).toBe(200)
+  await expect(stages.getByRole('link', { name: '学習・評価' })).toHaveAttribute(
+    'aria-current',
+    'step',
+  )
+  await expect(page.getByRole('heading', { name: 'プロジェクト', exact: true })).toBeVisible()
+  await expect(select).toHaveValue(opened)
+  // 殻の下ではアプリの名前と明暗の切り替えを出さない (殻の上の帯が持つ)
+  await expect(page.getByText('ML-Dashboard', { exact: true })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /表示にする$/ })).toHaveCount(1)
+
+  // 殻で選んだ問題の設定の欄 (まだ学習のプロジェクトを記録していないので, 開けない理由も出す)
+  const note = page.locator('section', {
+    has: page.getByRole('heading', { name: '選んだ問題の設定' }),
+  })
+  await expect(note.getByText('機械の故障', { exact: true })).toBeVisible()
+  await expect(note.getByText(opened, { exact: true })).toBeVisible()
+  await expect(note.getByText(/プロジェクトの記録がありません/)).toBeVisible()
+
+  // 殻の明暗の切り替えが段階の画面の色 (色の変数) に効く
+  // (e2e は DOM の型を持たないので, ページの中で動かす関数を文字列で渡す)
+  const color = () =>
+    page.evaluate<string>(
+      `getComputedStyle([...document.querySelectorAll('section')].find((section) => section.querySelector('h2')?.textContent === '選んだ問題の設定')).backgroundColor`,
+    )
+  const light = await color()
+  await page.getByRole('button', { name: '暗い表示にする' }).click()
+  await expect(page.locator('html')).toHaveClass(/dark/)
+  await expect.poll(color).not.toBe(light)
+  await page.getByRole('button', { name: '明るい表示にする' }).click()
+  await expect.poll(color).toBe(light)
+
+  // 段階の中の移動 (左の欄のジョブ) は /train の下に留まる
+  await page.getByRole('link', { name: 'ジョブ', exact: true }).click()
+  await expect(page).toHaveURL(/\/train\/jobs$/)
+  await expect(page.getByRole('heading', { name: 'ジョブ', exact: true })).toBeVisible()
+
+  // 問題の設定の段階に戻ると, 同じ問題の設定を開く
+  await stages.getByRole('link', { name: '問題の設定' }).click()
+  await expect(page).toHaveURL(new RegExp(`/problem/problems/${opened}$`))
+  await expect(page.getByRole('heading', { name: '機械の故障' })).toBeVisible()
+
+  expect(errors).toEqual([])
+})
+
 // 段階の根の部品は段階ごとに分けて読む. 最初は開いた段階の分だけを読み, 各段階の頭を直に
 // 開いても再読み込みしても段階の画面を出す
 test('段階の画面を段階ごとに読み, 直に開いても再読み込みしても出す', async ({ page }) => {
@@ -252,6 +324,16 @@ test('段階の画面を段階ごとに読み, 直に開いても再読み込み
   await page.reload()
   await expect(page.getByRole('heading', { name: '書き出したデータセット' })).toBeVisible()
   expect(chunks.size).toBe(3)
+
+  // 学習・評価の段階の中の経路を直に開き, 再読み込みしても同じ画面を出す
+  await page.goto('/train/jobs')
+  await expect(page.getByRole('heading', { name: 'ジョブ', exact: true })).toBeVisible()
+  await page.reload()
+  await expect(page.getByRole('heading', { name: 'ジョブ', exact: true })).toBeVisible()
+  await expect(
+    page.getByRole('navigation', { name: '段階' }).getByRole('link', { name: '学習・評価' }),
+  ).toHaveAttribute('aria-current', 'step')
+  expect(chunks.size).toBe(4)
 
   expect(errors).toEqual([])
 })

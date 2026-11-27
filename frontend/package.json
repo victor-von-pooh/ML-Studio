@@ -16,6 +16,7 @@
   "dependencies": {
     "lucide-react": "^1.72.0",
     "ml-createarchitecture-frontend": "workspace:*",
+    "ml-dashboard-frontend": "workspace:*",
     "ml-fathom-frontend": "workspace:*",
     "ml-pathfinder-frontend": "workspace:*",
     "react": "^19.3.1",

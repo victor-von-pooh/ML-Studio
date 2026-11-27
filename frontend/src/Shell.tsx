@@ -20,6 +20,7 @@ const STAGE_APPS: Partial<Record<StageKey, ComponentType<StageAppProps>>> = {
   problem: lazyStage(() => import('ml-pathfinder-frontend')),
   data: lazyStage(() => import('ml-fathom-frontend')),
   model: lazyStage(() => import('ml-createarchitecture-frontend')),
+  train: lazyStage(() => import('ml-dashboard-frontend')),
 }
 
 /** 段階の画面を読む間に段階の場所に出す表示 */

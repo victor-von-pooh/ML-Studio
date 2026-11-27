@@ -7,3 +7,6 @@
 [submodule "ML-CreateArchitecture"]
 	path = ML-CreateArchitecture
 	url = https://github.com/victor-von-pooh/ML-CreateArchitecture.git
+[submodule "ML-Dashboard"]
+	path = ML-Dashboard
+	url = https://github.com/victor-von-pooh/ML-Dashboard.git
