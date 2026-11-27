@@ -9,9 +9,11 @@ import subprocess
 import sys
 from pathlib import Path
 
-# リポジトリの名前らしい語 (大文字小文字と - と _ の違いを問わない. 後ろに
-# _ が続く環境変数のような語は除く). 比べるときは名前の形をそろえる
-REPO_NAME = re.compile(r"\bml[-_][a-z]+\b(?!_)", re.IGNORECASE)
+# リポジトリの名前らしい語. 大文字の ML に - か _ が続く語と, パッケージ名
+# の形の小文字の ml_ で始まる語 (小文字の ml- は画面のクラス名 ml-auto など
+# と取り違えるので探さない. 後ろに _ が続く環境変数のような語も除く).
+# 比べるときは名前の形をそろえる
+REPO_NAME = re.compile(r"\bML[-_][A-Za-z]+\b(?!_)|\bml_[a-z]+\b(?!_)")
 
 # 手元の環境の絶対パス (URL の中の /home/ などは対象外)
 LOCAL_PATH = re.compile(
