@@ -22,8 +22,8 @@
 ## 優先度 低
 
 ### Linux の殻で torchaudio の部品を使えるようにする
-- 何を: Linux で `make extras EXTRAS=torchaudio` (と `all`) を足したときに, torchaudio を CUDA の無い版の torch と版の合うもので入れる (CPU の index から取るか, 上流の版のずれが直るのを待って確かめる)
-- なぜ: 足すときは殻の設定を読まないので torchaudio が PyPI から入り, 上流の版のずれで CUDA の無い版の torch と合わずに読み込めず, torchaudio の部品が使えないため
+- 何を: 上流が殻の torch (2.15) に合う torchaudio を出したら, Linux で `make extras EXTRAS=torchaudio` (と `all`) を足して torchaudio の部品が使えるかを確かめ, 要るなら殻の lock の torch の版を合わせる (今は PyPI にも CPU の index にも torch 2.15 に合う torchaudio が無く, 2.11 までしか無い)
+- なぜ: torch 2.15 と torchaudio 2.11 の上流の版のずれで, Linux では torchaudio を読み込めず, torchaudio の部品が使えないため
 - 終わりの条件: Linux で torchaudio を足した殻で, モデルの作成・選定の段階の部品の一覧に torchaudio の部品が使えると出る. docs/DESIGN.md の 6 と 8 の節, README, docs/GUIDE.md の Linux の断りを消す
 - つながり: 無し
 
