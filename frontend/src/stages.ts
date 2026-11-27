@@ -18,7 +18,7 @@ export const STAGES: readonly Stage[] = [
   { key: 'problem', label: '問題の設定', app: 'ML-Pathfinder', available: true },
   { key: 'data', label: 'データの分析', app: 'ML-Fathom', available: true },
   { key: 'model', label: 'モデルの作成・選定', app: 'ML-CreateArchitecture', available: true },
-  { key: 'train', label: '学習・評価', app: 'ML-Dashboard', available: false },
+  { key: 'train', label: '学習・評価', app: 'ML-Dashboard', available: true },
   { key: 'infer', label: '推論', app: 'ML-Provide', available: false },
 ]
 

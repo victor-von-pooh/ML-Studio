@@ -1,4 +1,7 @@
+import shutil
+import time
 from pathlib import Path
+from typing import Any
 
 import pytest
 from fastapi import FastAPI
@@ -10,6 +13,9 @@ from ml_studio.cli import allowed_hosts
 
 # テストのトークン
 TOKEN = "test-token"
+
+# ML-Dashboard の見本の学習のプロジェクト (submodule の中)
+DASHBOARD_DEMO = Path(__file__).parents[2] / "ML-Dashboard" / "demo"
 
 # テストの画面の index.html の中身
 INDEX = "<!doctype html><title>ML-Studio</title>"
@@ -62,14 +68,15 @@ def app_client(
     client: TestClient
         トークンを持たない利用者
     """
-    # ML-Pathfinder, ML-Fathom, ML-CreateArchitecture の既定の置き場の
-    # 一時ディレクトリへの差し替え
+    # ML-Pathfinder, ML-Fathom, ML-CreateArchitecture, ML-Dashboard の既定の
+    # 置き場の一時ディレクトリへの差し替え
     monkeypatch.setenv("ML_PATHFINDER_HOME", str(tmp_path / "home"))
     monkeypatch.setenv("ML_FATHOM_HOME", str(tmp_path / "fathom"))
     monkeypatch.setenv(
         "ML_CREATEARCHITECTURE_HOME", str(tmp_path / "createarchitecture")
     )
     monkeypatch.delenv("ML_CREATEARCHITECTURE_MODULES", raising=False)
+    monkeypatch.setenv("ML_DASHBOARD_HOME", str(tmp_path / "dashboard"))
     app = create_app(
         token=TOKEN, allowed_hosts=["testserver"], static_dir=static_dir
     )
@@ -119,6 +126,7 @@ def test_token_required(app_client: TestClient) -> None:
     assert app_client.get("/api/x").status_code == 401
     assert app_client.get("/api/data/sources").status_code == 401
     assert app_client.get("/api/model/units").status_code == 401
+    assert app_client.get("/api/train/projects").status_code == 401
 
     # 別の起動のトークンの Cookie
     app_client.cookies.set(cookie_name("other"), "other")
@@ -225,6 +233,10 @@ def test_origin_checked(client: TestClient) -> None:
     response = client.post("/api/model/check", json={}, headers=other)
     assert response.status_code == 403
 
+    # 学習・評価の段階の書き込みも別のサイトからは 403
+    response = client.post("/api/train/projects", json={}, headers=other)
+    assert response.status_code == 403
+
 
 def test_host_checked(client: TestClient) -> None:
     """
@@ -250,6 +262,10 @@ def test_host_checked(client: TestClient) -> None:
     assert response.status_code == 400
     response = client.get(
         "/api/model/units", headers={"host": "evil.example"}
+    )
+    assert response.status_code == 400
+    response = client.get(
+        "/api/train/projects", headers={"host": "evil.example"}
     )
     assert response.status_code == 400
 
@@ -400,6 +416,129 @@ def test_model_api_mounted(client: TestClient, tmp_path: Path) -> None:
     assert client.get("/api/model/models").status_code == 200
 
 
+def test_train_api_mounted(client: TestClient, tmp_path: Path) -> None:
+    """
+    ML-Dashboard の API が /api/train の下で動き, ML-Pathfinder と同じ
+    問題の設定の置き場を読むことを確かめる関数
+
+    Parameters
+    ----------
+    client: TestClient
+        トークン付きの利用者
+    tmp_path: Path
+        一時ディレクトリ
+
+    Returns
+    ----------
+    None
+    """
+    # 問題の設定の段階で作った問題の設定の, 学習・評価の段階での読み込み
+    # (監視する指標と向きは extra の problem の ML-Quest を通して読む)
+    response = client.get("/api/train/problems/training")
+    assert response.status_code == 200
+    assert response.json()["problems"] == []
+    response = client.post("/api/problem/problems", json={"name": "需要"})
+    assert response.status_code == 201
+    created = response.json()
+    listed = client.get("/api/train/problems/training").json()
+    problems_dir = tmp_path / "home" / "problems"
+    assert Path(listed["root"]) == problems_dir.resolve()
+    assert listed["error"] is None
+    assert [Path(item["problem_path"]).parent.name
+            for item in listed["problems"]] == [created["id"]]
+    response = client.get(f"/api/train/problems/{created['id']}/project")
+    assert response.status_code == 200
+    assert response.json()["problem"] == "需要"
+    response = client.get("/api/train/problems/none/project")
+    assert response.status_code == 404
+
+    # 段階の間で同じ置き場と, ML-Dashboard の既定 (環境変数の下) の
+    # アプリの置き場
+    app: FastAPI = client.app  # type: ignore[assignment]
+    train_api = mounted_api(client, "/api/train")
+    assert train_api.state.problems_dir == app.state.problems_dir
+    home = (tmp_path / "dashboard").resolve()
+    assert train_api.state.store.data_dir == home
+    assert train_api.state.jobs.jobs_dir == home / "jobs"
+
+    # 登録したプロジェクトの一覧とジョブの一覧
+    assert client.get("/api/train/projects").json() == []
+    assert client.get("/api/train/jobs").json() == []
+
+
+def wait_job(client: TestClient, job_id: str) -> dict[str, Any]:
+    """
+    学習のジョブが終わるまで待つ関数
+
+    Parameters
+    ----------
+    client: TestClient
+        トークン付きの利用者
+    job_id: str
+        ジョブの ID
+
+    Returns
+    ----------
+    job: dict[str, Any]
+        終わったジョブの情報
+    """
+    # 最大 120 秒まで, 0.2 秒ごとに確認
+    deadline = time.monotonic() + 120
+    while time.monotonic() < deadline:
+        job: dict[str, Any] = client.get(f"/api/train/jobs/{job_id}").json()
+        if job["status"] == "finished":
+            return job
+        time.sleep(0.2)
+    output = client.get(f"/api/train/jobs/{job_id}/output").json()["text"]
+
+    raise AssertionError(f"学習が終わりませんでした: {job}\n{output}")
+
+
+def test_train_job_runs(client: TestClient, tmp_path: Path) -> None:
+    """
+    殻の下で ML-Dashboard の学習のジョブが別のプロセスで起動して終わる
+    ことを確かめる関数
+
+    ML-Dashboard の見本 (渦巻きの 2 クラスの分類) を写し, エポックを
+    減らして ML-Found で学習する
+
+    Parameters
+    ----------
+    client: TestClient
+        トークン付きの利用者
+    tmp_path: Path
+        一時ディレクトリ
+
+    Returns
+    ----------
+    None
+    """
+    # 見本のプロジェクトの写しの登録
+    project_dir = tmp_path / "workspace" / "demo"
+    shutil.copytree(DASHBOARD_DEMO, project_dir)
+    response = client.post(
+        "/api/train/projects", json={"path": str(project_dir)}
+    )
+    assert response.status_code == 201
+    project_id = response.json()["id"]
+
+    # 小さくした config での起動と終わり
+    config = "trainer:\n  epochs: 2\ndata:\n  train_size: 64\n" \
+        "  valid_size: 32\n"
+    response = client.post(
+        f"/api/train/projects/{project_id}/jobs",
+        json={"script": "train.py", "config_text": config}
+    )
+    assert response.status_code == 201, response.text
+    job = wait_job(client, response.json()["id"])
+    assert job["return_code"] == 0
+    assert job["run"]["status"] == "completed"
+
+    # 学習した実験の一覧での表示
+    runs = client.get(f"/api/train/projects/{project_id}/runs").json()
+    assert len(runs) == 1
+
+
 def test_unknown_api_not_found(client: TestClient) -> None:
     """
     どの段階にも合わない /api の下の経路が 404 になることを確かめる関数
@@ -416,7 +555,7 @@ def test_unknown_api_not_found(client: TestClient) -> None:
     # 画面の HTML ではなく 404 の JSON
     for path in (
         "/api", "/api/x", "/api/problem", "/api/data/items",
-        "/api/model/items"
+        "/api/model/items", "/api/train/items"
     ):
         response = client.get(path)
         assert response.status_code == 404
@@ -509,6 +648,7 @@ def test_without_frontend(
         "ML_CREATEARCHITECTURE_HOME", str(tmp_path / "createarchitecture")
     )
     monkeypatch.delenv("ML_CREATEARCHITECTURE_MODULES", raising=False)
+    monkeypatch.setenv("ML_DASHBOARD_HOME", str(tmp_path / "dashboard"))
     app = create_app(
         token=TOKEN, allowed_hosts=["testserver"],
         static_dir=tmp_path / "empty"

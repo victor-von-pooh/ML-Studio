@@ -21,7 +21,7 @@ dev:
 
 dev-backend:
 	@echo "画面を開く: http://localhost:5173/api/auth?token=$(DEV_TOKEN)"
-	cd backend && ML_STUDIO_TOKEN=$(DEV_TOKEN) uv run uvicorn ml_studio.app:create_app --factory --reload --reload-dir src --reload-dir ../ML-Pathfinder/backend/src --reload-dir ../ML-Fathom/backend/src --reload-dir ../ML-CreateArchitecture/backend/src --port $(PORT)
+	cd backend && ML_STUDIO_TOKEN=$(DEV_TOKEN) uv run uvicorn ml_studio.app:create_app --factory --reload --reload-dir src --reload-dir ../ML-Pathfinder/backend/src --reload-dir ../ML-Fathom/backend/src --reload-dir ../ML-CreateArchitecture/backend/src --reload-dir ../ML-Dashboard/backend/src --port $(PORT)
 
 dev-frontend:
 	cd frontend && API_PORT=$(PORT) pnpm dev

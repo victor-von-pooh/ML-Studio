@@ -14,6 +14,9 @@ dependencies = [
     # モデルの作成・選定の段階 (submodule の ML-CreateArchitecture. 問題の
     # 設定とデータセットを読むのに extra の project が要る)
     "ml-createarchitecture[project]",
+    # 学習・評価の段階 (submodule の ML-Dashboard. 問題の設定から学習の
+    # 監視する指標と向きを受け取るのに extra の problem が要る)
+    "ml-dashboard[problem]",
     # データの分析の段階 (submodule の ML-Fathom)
     "ml-fathom",
     # 問題の設定の段階 (submodule の ML-Pathfinder)
@@ -47,13 +50,16 @@ override-dependencies = [
 # 段階のアプリと, それが使うライブラリ (submodule の中の submodule)
 [tool.uv.sources]
 ml-createarchitecture = { path = "../ML-CreateArchitecture/backend", editable = true }
+ml-dashboard = { path = "../ML-Dashboard/backend", editable = true }
 ml-eda = { path = "../ML-Fathom/ML-EDA", editable = true }
 ml-fathom = { path = "../ML-Fathom/backend", editable = true }
+ml-found = { path = "../ML-Dashboard/ML-Found", editable = true }
 ml-modelcontrol = { path = "../ML-CreateArchitecture/ML-ModelControl", editable = true }
 ml-pathfinder = { path = "../ML-Pathfinder/backend", editable = true }
 ml-quest = { path = "../ML-Fathom/ML-Quest", editable = true }
 # Linux (CI) では CUDA の無い軽い PyTorch を使う (index は根の
-# pyproject.toml のものだけが効くので, ML-CreateArchitecture と同じものを書く)
+# pyproject.toml のものだけが効くので, ML-CreateArchitecture と ML-Dashboard
+# と同じものを書く)
 torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
 
 [[tool.uv.index]]

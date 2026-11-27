@@ -22,6 +22,7 @@ export default defineConfig({
         '../ML-Pathfinder/frontend',
         '../ML-Fathom/frontend',
         '../ML-CreateArchitecture/frontend',
+        '../ML-Dashboard/frontend',
       ],
     },
   },
