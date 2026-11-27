@@ -89,10 +89,7 @@ test('小さな見本で 5 つの段階を通し, 前の段階の結果を次の
 
   // 2. データの分析: 殻で選んだ問題の設定から始め, 記録した場所へデータセットを書き出す
   await goStage(page, 'データの分析', /\/data$/)
-  // (この欄は region の名前を持たないので, 見出しで絞る)
-  const card = page
-    .locator('section')
-    .filter({ has: page.getByRole('heading', { name: '選んだ問題の設定' }) })
+  const card = page.getByRole('region', { name: '選んだ問題の設定' })
   await expect(card.getByText('解約の引き止め')).toBeVisible()
   await card.getByRole('button', { name: 'この問題の設定から始める' }).click()
   await expect(page).toHaveURL(/\/data\/sources\/[^/]+$/, { timeout: 30_000 })
@@ -136,11 +133,12 @@ test('小さな見本で 5 つの段階を通し, 前の段階の結果を次の
 
   // 4. 学習・評価: 殻で選んだ問題の設定が記録したプロジェクトを登録し, 1 エポックだけ学習する
   await goStage(page, '学習・評価', /\/train$/)
-  // (この欄は region の名前を持たないので, 見出しで絞る)
-  const note = page.locator('section', {
-    has: page.getByRole('heading', { name: '選んだ問題の設定' }),
-  })
-  await expect(note.getByText(projectDir, { exact: true })).toBeVisible()
+  // 記録したプロジェクトの場所は欄の中の term と definition の対. Playwright は ARIA 1.3 に
+  // 従って term と definition の名前を計算しないので, 名前でなく欄の中の役割で選び, term の
+  // 文を確かめる (欄の中に対が 2 つ出たら, 厳密な選びで落ちる)
+  const note = page.getByRole('region', { name: '選んだ問題の設定' })
+  await expect(note.getByRole('term')).toHaveText(/^記録したプロジェクト/)
+  await expect(note.getByRole('definition')).toHaveText(projectDir)
   await note.getByRole('button', { name: '登録して開く' }).click()
   await expect(page).toHaveURL(/\/train\/projects\/[^/]+$/)
   await page.getByRole('link', { name: '学習を起動', exact: true }).click()
@@ -150,13 +148,13 @@ test('小さな見本で 5 つの段階を通し, 前の段階の結果を次の
   await epochs.press('Enter')
   await page.getByRole('button', { name: '学習を開始' }).click()
   await expect(page).toHaveURL(/\/train\/jobs\/[^/]+$/)
-  // ジョブの画面は, 学習の後に評価と推論の一式を書き出してから「完了」を出す (書き出しの間は
-  // 「後の処理中」で, その説明文にも「完了」の語が入るので, 状態の印を文の全体で合わせる).
-  // 失敗か中断で止まったら, ジョブの画面の文を付けてすぐ落とす
+  // ジョブの画面は, 学習の後に評価と推論の一式を書き出してから状態の印を「完了」にする
+  // (書き出しの間は「後の処理中」). 印は「状態: 完了」などの名前で選ぶ. 失敗か中断で
+  // 止まったら, ジョブの画面の文を付けてすぐ落とす
   const main = page.getByRole('main')
-  const settled = main.getByText(/^(完了|失敗|中断)$/)
+  const settled = main.getByRole('img', { name: /^状態: (完了|失敗|中断)$/ })
   await expect(settled).toBeVisible({ timeout: 180_000 })
-  expect(await settled.textContent(), await main.innerText()).toBe('完了')
+  expect(await settled.getAttribute('aria-label'), await main.innerText()).toBe('状態: 完了')
 
   // 5. 推論: 殻で選んだ問題の設定の実験から一式を登録し, 学習に使ったデータセットの
   // テスト用の分割を選んで推論する (場所は推論の段階が一式の実験から見つける)
