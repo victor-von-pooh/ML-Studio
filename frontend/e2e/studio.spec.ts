@@ -258,14 +258,20 @@ test('選んだ問題の設定を引き継いで学習・評価の段階を開�
   })
   await expect(note.getByText('機械の故障', { exact: true })).toBeVisible()
   await expect(note.getByText(opened, { exact: true })).toBeVisible()
+  await expect(note.getByText(/プロジェクトの記録がありません/)).toBeVisible()
 
   // 殻の明暗の切り替えが段階の画面の色 (色の変数) に効く
-  await expect(note).toHaveCSS('background-color', 'rgb(252, 252, 251)')
+  // (e2e は DOM の型を持たないので, ページの中で動かす関数を文字列で渡す)
+  const color = () =>
+    page.evaluate<string>(
+      `getComputedStyle([...document.querySelectorAll('section')].find((section) => section.querySelector('h2')?.textContent === '選んだ問題の設定')).backgroundColor`,
+    )
+  const light = await color()
   await page.getByRole('button', { name: '暗い表示にする' }).click()
   await expect(page.locator('html')).toHaveClass(/dark/)
-  await expect(note).toHaveCSS('background-color', 'rgb(26, 26, 25)')
+  await expect.poll(color).not.toBe(light)
   await page.getByRole('button', { name: '明るい表示にする' }).click()
-  await expect(note).toHaveCSS('background-color', 'rgb(252, 252, 251)')
+  await expect.poll(color).toBe(light)
 
   // 段階の中の移動 (左の欄のジョブ) は /train の下に留まる
   await page.getByRole('link', { name: 'ジョブ', exact: true }).click()

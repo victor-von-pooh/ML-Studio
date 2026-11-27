@@ -481,6 +481,11 @@ def wait_job(client: TestClient, job_id: str) -> dict[str, Any]:
     ----------
     job: dict[str, Any]
         終わったジョブの情報
+
+    Raises
+    ----------
+    AssertionError
+        120 秒の間に終わらない場合
     """
     # 最大 120 秒まで, 0.2 秒ごとに確認
     deadline = time.monotonic() + 120
@@ -515,7 +520,11 @@ def test_train_job_runs(client: TestClient, tmp_path: Path) -> None:
     """
     # 見本のプロジェクトの写しの登録
     project_dir = tmp_path / "workspace" / "demo"
-    shutil.copytree(DASHBOARD_DEMO, project_dir)
+    # (単独で動かした見本の実験と仮想環境は写さない)
+    shutil.copytree(
+        DASHBOARD_DEMO, project_dir,
+        ignore=shutil.ignore_patterns("outputs", ".venv", "venv")
+    )
     response = client.post(
         "/api/train/projects", json={"path": str(project_dir)}
     )
@@ -523,8 +532,10 @@ def test_train_job_runs(client: TestClient, tmp_path: Path) -> None:
     project_id = response.json()["id"]
 
     # 小さくした config での起動と終わり
-    config = "trainer:\n  epochs: 2\ndata:\n  train_size: 64\n" \
+    config = (
+        "trainer:\n  epochs: 2\ndata:\n  train_size: 64\n"
         "  valid_size: 32\n"
+    )
     response = client.post(
         f"/api/train/projects/{project_id}/jobs",
         json={"script": "train.py", "config_text": config}
