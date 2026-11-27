@@ -39,6 +39,7 @@ const mockStageApp = vi.hoisted(() => async (app: string) => {
 
 vi.mock('ml-pathfinder-frontend', () => mockStageApp('ML-Pathfinder'))
 vi.mock('ml-fathom-frontend', () => mockStageApp('ML-Fathom'))
+vi.mock('ml-createarchitecture-frontend', () => mockStageApp('ML-CreateArchitecture'))
 
 /** 一覧の API の応答 (呼ばれるたびに次の一覧を返す) */
 function mockProblems(...lists: { id: string; name: string }[][]) {
@@ -86,12 +87,41 @@ describe('殻の画面', () => {
     const current = screen.getByRole('link', { name: '問題の設定' })
     expect(current).toHaveAttribute('aria-current', 'step')
     expect(screen.getByRole('link', { name: 'データの分析' })).toHaveAttribute('href', '/data')
+    expect(screen.getByRole('link', { name: 'モデルの作成・選定' })).toHaveAttribute(
+      'href',
+      '/model',
+    )
     expect(nav).toHaveTextContent('推論')
     // 押せない段階はリンクでなく, まだ載っていないと読み上げにも出す
-    expect(screen.queryByRole('link', { name: /モデルの作成・選定/ })).toBeNull()
-    const pending = screen.getByText('モデルの作成・選定', { exact: false })
-    expect(pending).toHaveTextContent('モデルの作成・選定 (まだ載っていないので開けない)')
-    expect(pending).toHaveAttribute('title', 'ML-CreateArchitecture はまだ載っていない')
+    expect(screen.queryByRole('link', { name: /学習・評価/ })).toBeNull()
+    const pending = screen.getByText('学習・評価', { exact: false })
+    expect(pending).toHaveTextContent('学習・評価 (まだ載っていないので開けない)')
+    expect(pending).toHaveAttribute('title', 'ML-Dashboard はまだ載っていない')
+  })
+
+  it('モデルの作成・選定を押すと, 選んだプロジェクトを引き継いで ML-CreateArchitecture の根の部品を出す', async () => {
+    localStorage.setItem('studio-project', 'p1')
+    mockProblems([{ id: 'p1', name: '需要' }])
+    render(<Shell />)
+    fireEvent.click(screen.getByRole('link', { name: 'モデルの作成・選定' }))
+    expect(window.location.pathname).toBe('/model')
+    expect(screen.getByRole('link', { name: 'モデルの作成・選定' })).toHaveAttribute(
+      'aria-current',
+      'step',
+    )
+    expect(stage.app).toBe('ML-CreateArchitecture')
+    expect(stage.props).toMatchObject({
+      basename: '/model',
+      apiBase: '/api/model',
+      project: 'p1',
+      embedded: true,
+    })
+
+    // 部品の onProjectChange で殻の選びを替える
+    await screen.findByRole('option', { name: '需要' })
+    fireEvent.click(screen.getByRole('button', { name: '部品の中で開く' }))
+    expect(stage.props?.project).toBe('p2')
+    expect(localStorage.getItem('studio-project')).toBe('p2')
   })
 
   it('データの分析を押すと, 選んだプロジェクトを引き継いで ML-Fathom の根の部品を出す', async () => {

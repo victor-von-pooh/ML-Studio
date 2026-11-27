@@ -11,6 +11,9 @@ license = "MIT"
 requires-python = ">=3.10"
 dependencies = [
     "fastapi>=0.115",
+    # モデルの作成・選定の段階 (submodule の ML-CreateArchitecture. 問題の
+    # 設定とデータセットを読むのに extra の project が要る)
+    "ml-createarchitecture[project]",
     # データの分析の段階 (submodule の ML-Fathom)
     "ml-fathom",
     # 問題の設定の段階 (submodule の ML-Pathfinder)
@@ -43,10 +46,20 @@ override-dependencies = [
 
 # 段階のアプリと, それが使うライブラリ (submodule の中の submodule)
 [tool.uv.sources]
+ml-createarchitecture = { path = "../ML-CreateArchitecture/backend", editable = true }
 ml-eda = { path = "../ML-Fathom/ML-EDA", editable = true }
 ml-fathom = { path = "../ML-Fathom/backend", editable = true }
+ml-modelcontrol = { path = "../ML-CreateArchitecture/ML-ModelControl", editable = true }
 ml-pathfinder = { path = "../ML-Pathfinder/backend", editable = true }
 ml-quest = { path = "../ML-Fathom/ML-Quest", editable = true }
+# Linux (CI) では CUDA の無い軽い PyTorch を使う (index は根の
+# pyproject.toml のものだけが効くので, ML-CreateArchitecture と同じものを書く)
+torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/ml_studio"]

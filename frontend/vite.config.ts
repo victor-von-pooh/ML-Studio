@@ -21,13 +21,14 @@ export default defineConfig({
         searchForWorkspaceRoot(process.cwd()),
         '../ML-Pathfinder/frontend',
         '../ML-Fathom/frontend',
+        '../ML-CreateArchitecture/frontend',
       ],
     },
   },
   build: {
     outDir: '../backend/src/ml_studio/static',
     emptyOutDir: true,
-    // 段階のアプリの画面を 1 つのビルドにまとめる (データの分析の段階のグラフの部品が大きい)
+    // 段階のアプリの画面を 1 つのビルドにまとめる (データの分析の段階のグラフの部品とモデルの作成・選定の段階のキャンバスの部品が大きい)
     chunkSizeWarningLimit: 2500,
   },
   test: {

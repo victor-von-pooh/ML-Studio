@@ -10,6 +10,7 @@ from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from ml_createarchitecture.app import create_api as create_model_api
 from ml_fathom.app import create_api as create_data_api
 from ml_pathfinder.app import create_api as create_problem_api
 
@@ -31,9 +32,10 @@ TOKEN_HEADER = "x-studio-token"
 API_PREFIX = "/api"
 AUTH_PATH = "/api/auth"
 
-# 問題の設定の段階とデータの分析の段階の API の頭
+# 問題の設定, データの分析, モデルの作成・選定の段階の API の頭
 PROBLEM_PREFIX = "/api/problem"
 DATA_PREFIX = "/api/data"
+MODEL_PREFIX = "/api/model"
 
 # 合わない API の経路で 404 を返すメソッド
 API_METHODS = ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
@@ -316,7 +318,14 @@ def create_stage_apis() -> tuple[dict[str, FastAPI], Path]:
 
     # データの分析の段階 (アプリの置き場は ML-Fathom の既定)
     data_api = create_data_api(problems_dir=problems_dir)
-    apis = {PROBLEM_PREFIX: problem_api, DATA_PREFIX: data_api}
+
+    # モデルの作成・選定の段階 (アプリの置き場と自作の部品は
+    # ML-CreateArchitecture の既定)
+    model_api = create_model_api(problems_dir=problems_dir)
+    apis = {
+        PROBLEM_PREFIX: problem_api, DATA_PREFIX: data_api,
+        MODEL_PREFIX: model_api
+    }
 
     return apis, problems_dir
 

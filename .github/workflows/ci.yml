@@ -23,8 +23,9 @@ jobs:
       - run: python scripts/check_docs.py
       - run: python scripts/check_versions.py
 
-  # 殻のバックエンド (ML-Pathfinder, ML-Fathom と, それらが submodule で持つ
-  # ML-EDA と ML-Quest を submodule から入れる)
+  # 殻のバックエンド (ML-Pathfinder, ML-Fathom, ML-CreateArchitecture と,
+  # それらが submodule で持つ ML-EDA, ML-Quest, ML-ModelControl を submodule
+  # から入れる)
   backend:
     runs-on: ubuntu-latest
     defaults:
@@ -44,8 +45,11 @@ jobs:
         working-directory: ML-Pathfinder/backend
       - run: uv run --project ../../backend --frozen pytest -q
         working-directory: ML-Fathom/backend
+      - run: uv run --project ../../backend --frozen pytest -q
+        working-directory: ML-CreateArchitecture/backend
 
-  # 殻の画面 (pnpm workspace に ML-Pathfinder と ML-Fathom の画面のパッケージを加える)
+  # 殻の画面 (pnpm workspace に ML-Pathfinder, ML-Fathom, ML-CreateArchitecture の
+  # 画面のパッケージを加える)
   frontend:
     runs-on: ubuntu-latest
     defaults:
@@ -71,7 +75,7 @@ jobs:
       - run: pnpm build
 
   # 殻を起動し, ブラウザで問題の設定を作ってプロジェクトの欄で選んで開き,
-  # データの分析の段階に移る
+  # データの分析の段階とモデルの作成・選定の段階に移る
   e2e:
     runs-on: ubuntu-latest
     steps:

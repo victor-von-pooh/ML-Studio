@@ -143,3 +143,73 @@ test('選んだ問題の設定を引き継いでデータの分析の段階を�
 
   expect(errors).toEqual([])
 })
+
+// 殻で選んだ問題の設定を引き継いでモデルの作成・選定の段階に移り, ML-CreateArchitecture の
+// 画面が殻の問題の設定の欄を出し, 殻の明暗の切り替えがキャンバスに効くことを確かめる
+test('選んだ問題の設定を引き継いでモデルの作成・選定の段階を開く', async ({ page }) => {
+  const errors: string[] = []
+  page.on('pageerror', (error) => errors.push(error.message))
+  page.on('console', (message) => {
+    if (message.type() === 'error') errors.push(message.text())
+  })
+
+  // 問題の設定を作って殻の欄で選ぶ
+  await page.goto('/api/auth?token=e2e-token')
+  await expect(page).toHaveURL(/\/problem$/)
+  await page.getByLabel(/^問題の名前/).fill('部品の需要')
+  await page.getByRole('button', { name: '作る', exact: true }).click()
+  await expect(page).toHaveURL(/\/problem\/problems\/[^/]+$/)
+  const opened = new URL(page.url()).pathname.split('/').pop()!
+  // (段階の画面の「データセットとプロジェクト」のボタンと分けるため, 名前を全て合わせる)
+  const select = page.getByLabel('プロジェクト', { exact: true })
+  await expect(select).toHaveValue(opened)
+
+  // 段階の並びでモデルの作成・選定に移ると, ML-CreateArchitecture の画面が API を /api/model の
+  // 下に呼んで開く
+  const checked = page.waitForResponse(
+    (response) => new URL(response.url()).pathname === '/api/model/check',
+  )
+  const stages = page.getByRole('navigation', { name: '段階' })
+  await stages.getByRole('link', { name: 'モデルの作成・選定' }).click()
+  await expect(page).toHaveURL(/\/model$/)
+  expect((await checked).status()).toBe(200)
+  await expect(stages.getByRole('link', { name: 'モデルの作成・選定' })).toHaveAttribute(
+    'aria-current',
+    'step',
+  )
+  const canvas = page.locator('.react-flow')
+  await expect(canvas).toBeVisible()
+  await expect(select).toHaveValue(opened)
+  // 殻の下ではアプリの名前と明暗の切り替えを出さない (殻の上の帯が持つ)
+  await expect(page.getByRole('heading', { name: 'ML-CreateArchitecture' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /表示にする$/ })).toHaveCount(1)
+
+  // 「データセットとプロジェクト」に殻で選んだ問題の設定の欄が出る
+  // (まだプロジェクトを書き出していないので, 使えない理由も出す)
+  const problems = page.waitForResponse(
+    (response) => new URL(response.url()).pathname === '/api/model/problems',
+  )
+  await page.getByRole('button', { name: 'データセットとプロジェクト' }).click()
+  expect((await problems).status()).toBe(200)
+  const dialog = page.getByRole('dialog', { name: 'データセットとプロジェクト' })
+  const note = dialog.getByRole('region', { name: '選んだ問題の設定' })
+  await expect(note.getByText('部品の需要')).toBeVisible()
+  await expect(note.getByText(`(${opened})`)).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(dialog).toBeHidden()
+
+  // 殻の明暗の切り替えがキャンバスの明暗 (React Flow の colorMode) に効く
+  await expect(canvas).not.toHaveClass(/\bdark\b/)
+  await page.getByRole('button', { name: '暗い表示にする' }).click()
+  await expect(page.locator('html')).toHaveClass(/dark/)
+  await expect(canvas).toHaveClass(/\bdark\b/)
+  await page.getByRole('button', { name: '明るい表示にする' }).click()
+  await expect(canvas).not.toHaveClass(/\bdark\b/)
+
+  // 問題の設定の段階に戻ると, 同じ問題の設定を開く
+  await stages.getByRole('link', { name: '問題の設定' }).click()
+  await expect(page).toHaveURL(new RegExp(`/problem/problems/${opened}$`))
+  await expect(page.getByRole('heading', { name: '部品の需要' })).toBeVisible()
+
+  expect(errors).toEqual([])
+})
