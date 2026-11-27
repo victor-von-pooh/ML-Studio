@@ -541,7 +541,12 @@ def test_train_job_runs(client: TestClient, tmp_path: Path) -> None:
         json={"script": "train.py", "config_text": config}
     )
     assert response.status_code == 201, response.text
-    job = wait_job(client, response.json()["id"])
+    job_id = response.json()["id"]
+    try:
+        job = wait_job(client, job_id)
+    finally:
+        # 待ち切りや途中の失敗でも, 別のセッションの学習を残さない
+        client.post(f"/api/train/jobs/{job_id}/stop")
     assert job["return_code"] == 0
     assert job["run"]["status"] == "completed"
 
