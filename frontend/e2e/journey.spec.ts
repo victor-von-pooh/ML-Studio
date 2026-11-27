@@ -133,12 +133,10 @@ test('小さな見本で 5 つの段階を通し, 前の段階の結果を次の
 
   // 4. 学習・評価: 殻で選んだ問題の設定が記録したプロジェクトを登録し, 1 エポックだけ学習する
   await goStage(page, '学習・評価', /\/train$/)
-  // 記録したプロジェクトの場所は欄の中の term と definition の対. Playwright は ARIA 1.3 に
-  // 従って term と definition の名前を計算しないので, 名前でなく欄の中の役割で選び, term の
-  // 文を確かめる (欄の中に対が 2 つ出たら, 厳密な選びで落ちる)
   const note = page.getByRole('region', { name: '選んだ問題の設定' })
-  await expect(note.getByRole('term')).toHaveText(/^記録したプロジェクト/)
-  await expect(note.getByRole('definition')).toHaveText(projectDir)
+  await expect(note.getByRole('group', { name: '記録したプロジェクト' })).toHaveText(
+    `記録したプロジェクト: ${projectDir}`,
+  )
   await note.getByRole('button', { name: '登録して開く' }).click()
   await expect(page).toHaveURL(/\/train\/projects\/[^/]+$/)
   await page.getByRole('link', { name: '学習を起動', exact: true }).click()
