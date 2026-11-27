@@ -3,14 +3,17 @@
 スクリプト
 
 docs/DESIGN.md の「共通のライブラリの版」の表を読み, submodule の中の
-submodule まで含めて, 同じ名前のライブラリの版が表と違えば場所を出して
-1 で終わる. submodule を取ってから (git submodule update --init
+submodule と, 載せた各アプリが git の依存で直に持つライブラリの lock の
+版が表と違えば, 場所を出して 1 で終わる. submodule を取ってから (git submodule update --init
 --recursive) 動かす
 """
 import re
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
+
+import tomllib
 
 # 表の見出しの名前と, 表の行 (| ライブラリ | `版` | 使うアプリ |)
 TABLE_TITLE = "共通のライブラリの版"
@@ -102,6 +105,81 @@ def submodule_versions(root: Path) -> list[tuple[str, str, str]]:
     return found
 
 
+def library_name(url: str) -> str:
+    """
+    git の URL から, ライブラリの名前 (リポジトリの名前) を取る関数
+
+    Parameters
+    ----------
+    url: str
+        git の URL (末尾の .git と # の後ろの版は無くてよい)
+
+    Returns
+    ----------
+    name: str
+        リポジトリの名前
+    """
+    name = url.split("#")[0].split("?")[0].rstrip("/").rsplit("/", 1)[-1]
+    name = name.removesuffix(".git")
+
+    return name
+
+
+def lock_versions(app: Path) -> tuple[list[tuple[str, str]], list[str]]:
+    """
+    アプリが git の依存で直に持つライブラリの, lock の版を読む関数
+
+    Parameters
+    ----------
+    app: Path
+        段階のアプリのディレクトリ (backend/pyproject.toml と
+        backend/uv.lock を持つ)
+
+    Returns
+    ----------
+    found: list[tuple[str, str]]
+        ライブラリの名前と lock の版 (コミット) の組の並び
+    errors: list[str]
+        読めない lock の説明の並び
+    """
+    # pyproject.toml の tool.uv.sources の git の依存 (無ければ空)
+    project = app / "backend" / "pyproject.toml"
+    if not project.is_file():
+        return [], []
+    config: dict[str, Any] = tomllib.loads(project.read_text("utf-8"))
+    sources = config.get("tool", {}).get("uv", {}).get("sources", {})
+    direct = {
+        package: library_name(source["git"])
+        for package, source in sources.items()
+        if isinstance(source, dict) and "git" in source
+    }
+    if not direct:
+        return [], []
+
+    # uv.lock の同じ名前のパッケージの git の版 (# の後ろ)
+    lock = app / "backend" / "uv.lock"
+    if not lock.is_file():
+        return [], [f"{lock.relative_to(app.parent)}: ありません"]
+    packages = tomllib.loads(lock.read_text("utf-8")).get("package", [])
+    locked = {
+        entry["name"]: entry.get("source", {}).get("git", "")
+        for entry in packages
+    }
+    found: list[tuple[str, str]] = []
+    errors: list[str] = []
+    for package, name in sorted(direct.items()):
+        url = locked.get(package, "")
+        if "#" not in url:
+            errors.append(
+                f"{lock.relative_to(app.parent)}: {package} の git の版が"
+                "ありません"
+            )
+            continue
+        found.append((name, url.rsplit("#", 1)[1]))
+
+    return found, errors
+
+
 def version_errors(root: Path) -> list[str]:
     """
     表の版とずれた submodule を探す関数
@@ -137,6 +215,24 @@ def version_errors(root: Path) -> list[str]:
             errors.append(
                 f"{path}: {commit[:7]} (表の版は {versions[name]})"
             )
+
+    # 殻の直下の段階のアプリが git の依存で直に持つライブラリの lock の版
+    apps = [
+        path for flag, path, _ in submodule_versions(root)
+        if "/" not in path and flag not in FLAG_ERRORS
+    ]
+    for app in apps:
+        found, lock_errors = lock_versions(root / app)
+        errors.extend(lock_errors)
+        for name, commit in found:
+            if name not in versions:
+                continue
+            seen.add(name)
+            if not commit.startswith(versions[name]):
+                errors.append(
+                    f"{app}/backend/uv.lock: {name} {commit[:7]} "
+                    f"(表の版は {versions[name]})"
+                )
 
     # 表に載せたのに木の中に無いライブラリ
     for name in sorted(set(versions) - seen):
