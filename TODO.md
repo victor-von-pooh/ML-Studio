@@ -5,11 +5,11 @@
 
 ## 優先度 高
 
-### 殻の設計と文書を書き, CI に殻の検査とテストを足す
-- 何を: docs/DESIGN.md に殻の設計 (起動, 起動ごとのトークンと Origin の確かめ, 各アプリのバックエンドを `/api/<段階>`, 画面を `/<段階>` の下に載せる決まり, 段階の並び, プロジェクトの選び方, 置き場) を書き, CI (今は文書とファイルの決まりの確かめだけ) に殻のコードの検査とテストを足す. 起動できるようになったら README.md と docs/GUIDE.md を CLAUDE.md の文書の表の形で書く
-- なぜ: CLAUDE.md の流れは先に docs/DESIGN.md を直し, CI が通ってからマージする決まりだが, 今は DESIGN.md, 殻のコードの検査とテスト, README.md の使い方, docs/GUIDE.md が無いため
-- 終わりの条件: docs/DESIGN.md が CLAUDE.md の節の並びで殻の設計を持ち, PR の CI が殻のコードの検査とテストも動かし, README.md と docs/GUIDE.md が今の殻の使い方を書く
-- つながり: 各アプリの TODO.md の統合の項目 (バックエンドを殻に mount できる形にする, 画面を経路の頭を渡して載せられる形にする, 殻で選んだプロジェクトを受け取る)
+### CI に殻の検査とテストを足し, README.md と docs/GUIDE.md を書く
+- 何を: CI (今は文書とファイルの決まりの確かめだけ) に殻のコードの検査 (Ruff, mypy, Prettier, oxlint, 型検査) とテストを足す. 起動できるようになったら README.md と docs/GUIDE.md を CLAUDE.md の文書の表の形で書く
+- なぜ: CLAUDE.md の流れは CI が通ってからマージする決まりだが, 今は殻のコードの検査とテスト, README.md の使い方, docs/GUIDE.md が無いため
+- 終わりの条件: PR の CI が殻のコードの検査とテストも動かし, README.md と docs/GUIDE.md が今の殻の使い方を書く
+- つながり: 「5 つのアプリを 1 つのコマンドと 1 つのポートで起動する」(殻のコードと起動ができてから README.md と docs/GUIDE.md を書く)
 
 ### 5 つのアプリを 1 つのコマンドと 1 つのポートで起動する
 - 何を: ML-Pathfinder, ML-Fathom, ML-CreateArchitecture, ML-Dashboard, ML-Provide を submodule で持ち, 1 つのコマンドで 1 つのポートに起動する. 起動ごとのトークンと Origin の確かめは殻が 1 つだけ持つ. 各アプリのバックエンドを `/api/<段階>`, 画面を `/<段階>` の下に載せ, 段階の並び (問題の設定 → データの分析 → モデルの作成・選定 → 学習・評価 → 推論) で行き来でき, 殻で選んだ 1 つのプロジェクトを全ての段階が見る
