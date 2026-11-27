@@ -63,7 +63,19 @@ make serve
 > `ML_STUDIO_TOKEN=好きな文字列 make serve` で起動すると, `http://127.0.0.1:8760/api/auth?token=好きな文字列` を開けば入れる.
 
 > **置き場**
-> 各段階は, 各アプリを単独で起動したときと同じ置き場 (`~/.ml-pathfinder/` など. 環境変数 `ML_PATHFINDER_HOME` などで変えられる) を開く. 置き場の一覧は README の「導入と起動」にある. 試すだけで普段の置き場を使いたくない場合は, 5 つの環境変数を別の場所にして起動する.
+> 各段階は, 各アプリを単独で起動したときと同じ置き場 (`~/.ml-pathfinder/` など. 環境変数 `ML_PATHFINDER_HOME` などで変えられる) を開く. 置き場の一覧は README の「[置き場](../README.md#置き場)」にある. 試すだけで普段の置き場を使いたくない場合は, 5 つの環境変数を別の場所にして起動する. 次の例は一時のディレクトリを作り, その下を 5 つの段階の置き場にする (同じ端末で続けて `make serve` を実行し直せば, 同じ置き場を開く).
+>
+> ```bash
+> STUDIO_TRY=$(mktemp -d)
+> export ML_PATHFINDER_HOME=$STUDIO_TRY/pathfinder
+> export ML_FATHOM_HOME=$STUDIO_TRY/fathom
+> export ML_CREATEARCHITECTURE_HOME=$STUDIO_TRY/createarchitecture
+> export ML_DASHBOARD_HOME=$STUDIO_TRY/dashboard
+> export ML_PROVIDE_HOME=$STUDIO_TRY/provide
+> make serve
+> ```
+>
+> 普段の置き場に戻すには, 端末を閉じて開き直すか, `unset ML_PATHFINDER_HOME ML_FATHOM_HOME ML_CREATEARCHITECTURE_HOME ML_DASHBOARD_HOME ML_PROVIDE_HOME` を実行してから起動する. `mktemp -d` の場所は OS が後で消すことがあるので, 残したいものは普段の置き場か消えない場所で作る.
 
 ## 2. 画面の見方
 
@@ -116,7 +128,7 @@ make serve
 
 問題の設定の段階 (ML-Pathfinder) で, 見本を開いて手元の表を入れ, 学習のプロジェクトを書き出す.
 
-1. 段階の並びの「問題の設定」を押し, 一覧の「見本を開く」の「解約の引き止め」を押す. 見本の写しが開き, 上の帯の欄も「解約の引き止め」に替わる
+1. 段階の並びの「問題の設定」を押し, 一覧の「見本を開く」の「解約の引き止め」を押す. 見本の写しが開き, 上の帯の欄も「解約の引き止め」に替わる. 「見本を開く」は押すたびに新しい写しを作り, 写しは同じ名前「解約の引き止め」で上の帯の欄に並ぶ (続きから始めるときは, 見本を開き直さずに欄か一覧から前の写しを選ぶ)
 2. 左の節の「5 機械学習の受け持ち」を押し, 「手元のデータは」の「データを入れる」を押す. 選ぶ対話の「パス」に準備で作った `churn.csv` の場所を書いて「移動」を押し, 「選ぶ」を押す
 3. 「80 行, 6 列 (表)」と出て, 列の名前が入る. 小さな表なので「見直す」の確かめが出るが, 直すところは無い
 4. 上の「学習のプロジェクトを書き出す」を押し, 「書き出すディレクトリ (無ければ作る)」に書き出し先 (例 `~/churn-project`) を書いて「書き出す」を押す
@@ -195,7 +207,7 @@ make serve
 | 段階に「選んだ問題の設定」が出ない | 上の帯の欄で問題の設定を選んでいるかを確かめる |
 | データの分析に「プロジェクトへ書き出す」が出ない, モデルの作成・選定や学習・評価に記録の場所が出ない | 問題の設定の段階で学習のプロジェクトを書き出していない. 5 章の 4 で書き出す (書き出した場所が問題の設定に記録される) |
 | 推論の「実験の一覧から登録」に実験が出ない | 選んだ問題の設定のプロジェクトの, 推論の一式を作った実験だけが並ぶ. 学習・評価の段階でジョブが「完了」になったか (「後の処理中」でないか) を確かめる. 他の問題の設定の実験は「全ての問題の設定の実験を出す」に印を付けると出る |
-| モデルの作成・選定の部品の一覧で, 外部のライブラリの部品が使えないと出る | 殻は既定では torchvision の部品だけが使える. 他 (huggingface, timm など) は, 殻を止めて `make extras EXTRAS="timm einops"` のようにその部品の extra を足し, 起動し直す (選べる名前は `make extras-list` で出る. Linux では torchaudio の部品は足しても使えない. `make setup` を `EXTRAS` 無しで実行すると消える) |
+| モデルの作成・選定の部品の一覧で, 外部のライブラリの部品が薄く出て置けない | そのライブラリが殻の環境に入っていない (既定で入っている外部のライブラリは torchvision だけ). 他 (huggingface, timm など) は, 殻を止めて `make extras EXTRAS="timm einops"` のようにその部品の extra を足し, 起動し直す (選べる名前は `make extras-list` で出る. 理由に出る `make setup EXTRAS="project …"` は単独で起動したときの入れ方で, 殻では `project` を書かない. Linux では torchaudio の部品は足しても使えない. `make setup` を `EXTRAS` 無しで実行すると消える) |
 | 殻を更新 (`git pull`) した後, 足した外部のライブラリの部品が読めない | 足したライブラリは前の版のまま残る. `make setup EXTRAS="timm einops"` のように足した extra を選んで入れ直す |
 | 段階を移ったら書きかけが消えた | 書きかけは下書きに残っている. 4 章の表の通りに下書きを戻す |
 | 各段階の画面の誤りや操作が分からない | 各アプリの操作ガイドの「困ったとき」を見る ([ML-Pathfinder](https://github.com/victor-von-pooh/ML-Pathfinder/blob/main/docs/GUIDE.md#9-困ったとき), [ML-Fathom](https://github.com/victor-von-pooh/ML-Fathom/blob/main/docs/GUIDE.md#20-困ったとき), [ML-CreateArchitecture](https://github.com/victor-von-pooh/ML-CreateArchitecture/blob/main/docs/GUIDE.md#12-困ったとき), [ML-Dashboard](https://github.com/victor-von-pooh/ML-Dashboard/blob/main/docs/GUIDE.md#9-困ったとき), [ML-Provide](https://github.com/victor-von-pooh/ML-Provide/blob/main/docs/GUIDE.md#13-困ったとき)) |
