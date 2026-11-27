@@ -14,7 +14,7 @@
 ## 優先度 中
 
 ### 学習・評価の段階の記録したプロジェクトの場所を名前で選べるよう ML-Dashboard に頼む
-- 何を: 学習・評価の段階の「選んだ問題の設定」の欄の中の「記録したプロジェクト」の場所は, 名前を `dd` (役割 definition) の `aria-labelledby` で持つが, Playwright は ARIA 1.3 に従って definition の名前を計算しない (`getByRole('definition', { name })` も `getByLabel` も見つけない). 名前を計算する役割 (group など) で名前を持つ形を, ML-Dashboard の TODO.md の項目として頼む
+- 何を: 学習・評価の段階の「選んだ問題の設定」の欄の中の「記録したプロジェクト」の場所は, 名前を `dd` (役割 definition) の `aria-labelledby` で持つが, Playwright は ARIA 1.3 に従って definition の名前を計算しない (`getByRole('definition', { name })` は見つけず, `getByLabel` は完全一致では見つけない. 隠した「:」までラベルの文に入るため). ARIA 1.3 では `dd` の名前を支援技術も読まないので, 読み上げの問題でもある. ML-Dashboard の単体テスト (jsdom) は名前を計算するので, このずれに気付けない. 名前を計算する役割 (group など) で名前を持つ形を, ML-Dashboard の TODO.md の項目として頼む
 - なぜ: 通しの確かめは今, 欄の中の term と definition を役割だけで選び term の文を確かめるので, 欄の中に同じ役割の対が足されると選べなくなるため
 - 終わりの条件: ML-Dashboard の TODO.md にあり, 済んだら通しの確かめがその場所を役割と名前で選び, docs/DESIGN.md の 10 の節の断りを消す
 - つながり: ML-Dashboard の TODO.md (頼む項目)
