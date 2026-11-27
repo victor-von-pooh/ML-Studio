@@ -6,16 +6,16 @@
 ## 優先度 高
 
 ### 殻の最小の形を問題の設定の段階だけで通す
-- 何を: ML-Pathfinder を submodule で持ち, 殻のバックエンド (起動, トークンと Origin と Host の確かめ, `/api/auth`, ML-Pathfinder の `create_api` を `/api/problem` に mount) と殻の画面 (上の帯, プロジェクトの欄, 段階の並び, ML-Pathfinder の根の部品を `/problem` に載せる) を作り, 1 つのコマンドで開く. ML-Pathfinder に要求の R1 から R6 (docs/DESIGN.md の 9 の節) を頼む
+- 何を: ML-Pathfinder を submodule で持ち, 殻のバックエンド (起動, トークンと Origin と Host の確かめ, `/api/auth`, ML-Pathfinder の `create_api` を `/api/problem` に mount) と殻の画面 (上の帯, プロジェクトの欄, 段階の並び, ML-Pathfinder の根の部品を `/problem` に載せる) を作り, 1 つのコマンドで開く. 殻の画面は ML-Pathfinder の画面のパッケージを pnpm workspace に加えて根の部品を import する. ML-Pathfinder に要求の R1 から R7 (docs/DESIGN.md の 9 の節) を頼む. 殻のコードが入るこの PR で, CI に殻の検査とテストも足す
 - なぜ: 5 つを同時に作り替える前に, 要求と殻の作りが正しいかを 1 つの段階で確かめるため
 - 終わりの条件: `ml-studio` の 1 つのコマンドで殻が開き, `/problem` で問題の設定の画面が動き, プロジェクトの欄で選んだ問題の設定が開く. ML-Pathfinder は単独でも今まで通り動く
 - つながり: ML-Pathfinder の TODO.md の統合の項目
 
 ### 5 つのアプリを 1 つのコマンドと 1 つのポートで起動する
-- 何を: ML-Fathom (`/data`), ML-CreateArchitecture (`/model`), ML-Dashboard (`/train`), ML-Provide (`/infer`) の順に, 各アプリに要求の R1 から R6 を頼み, submodule で持って殻に載せる. 1 つ載せるごとに殻が開くことを確かめる
+- 何を: ML-Fathom (`/data`), ML-CreateArchitecture (`/model`), ML-Dashboard (`/train`), ML-Provide (`/infer`) の順に, 各アプリに要求の R1 から R7 を頼み, submodule で持って殻に載せる. 1 つ載せるごとに殻が開くことを確かめる
 - なぜ: 1 つずつ載せると, 要求の足りない所をその段階で見つけて直せるため
 - 終わりの条件: 1 つのコマンドで 5 つの段階の画面が 1 つのポートで開き, 段階の並びで行き来でき, 選んだプロジェクトを全ての段階が見る. 各アプリは単独でも今まで通り動く
-- つながり: 「殻の最小の形を問題の設定の段階だけで通す」(先に要る). 各アプリの TODO.md の統合の項目
+- つながり: 「殻の最小の形を問題の設定の段階だけで通す」(先に要る). 各アプリの TODO.md の統合の項目. 「CI に殻の検査とテストを足し, README.md と docs/GUIDE.md を書く」(載せた段階のテストを CI に足す)
 
 ## 優先度 中
 
