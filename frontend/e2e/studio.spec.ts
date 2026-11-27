@@ -342,9 +342,68 @@ test('学習・評価の段階でブラウザの戻ると進むが段階の中�
   expect(errors).toEqual([])
 })
 
-// 段階を往復しても, 外した学習・評価の段階の画面のルーターが戻ると進むの見張りを残さない
-// ことを確かめる (残っても画面の見え方は変わらないので, 生きている見張りの数で見る)
-test('学習・評価の段階を往復しても戻ると進むの見張りが増えない', async ({ page }) => {
+// 殻の欄で問題の設定を選んだ状態でも, 段階をまたいで戻ると作り直した学習・評価の段階の画面が
+// 今の経路を保つ (殻の選びに合わせる見張りが一覧に移さない) ことを確かめる
+test('問題の設定を選んだまま学習・評価の段階に戻っても今の経路を保つ', async ({ page }) => {
+  const errors: string[] = []
+  page.on('pageerror', (error) => errors.push(error.message))
+  page.on('console', (message) => {
+    if (message.type() === 'error') errors.push(message.text())
+  })
+
+  // 問題の設定を作って殻の欄で選ぶ
+  await page.goto('/api/auth?token=e2e-token')
+  await expect(page).toHaveURL(/\/problem$/)
+  await page.getByLabel(/^問題の名前/).fill('窯の温度')
+  await page.getByRole('button', { name: '作る', exact: true }).click()
+  await expect(page).toHaveURL(/\/problem\/problems\/[^/]+$/)
+  const opened = new URL(page.url()).pathname.split('/').pop()!
+  const select = page.getByLabel('プロジェクト', { exact: true })
+  await expect(select).toHaveValue(opened)
+
+  const stages = page.getByRole('navigation', { name: '段階' })
+  const train = stages.getByRole('link', { name: '学習・評価' })
+  const jobs = page.getByRole('heading', { name: 'ジョブ', exact: true })
+
+  // 段階の並びで学習・評価に移り, 段階の中のリンクでジョブに移る
+  await train.click()
+  await expect(page).toHaveURL(/\/train$/)
+  await expect(page.getByRole('heading', { name: 'プロジェクト', exact: true })).toBeVisible()
+  await page.getByRole('link', { name: 'ジョブ', exact: true }).click()
+  await expect(page).toHaveURL(/\/train\/jobs$/)
+  await expect(jobs).toBeVisible()
+
+  // 問題の設定の段階に移ると, 選んだ問題の設定を開く
+  await stages.getByRole('link', { name: '問題の設定' }).click()
+  await expect(page).toHaveURL(new RegExp(`/problem/problems/${opened}$`))
+  await expect(page.getByRole('heading', { name: '窯の温度' })).toBeVisible()
+
+  // 戻ると, 作り直した学習・評価の段階の画面が選びを受け取っても /train/jobs に留まる
+  await page.goBack()
+  await expect(page).toHaveURL(/\/train\/jobs$/)
+  await expect(jobs).toBeVisible()
+  await expect(train).toHaveAttribute('aria-current', 'step')
+  await expect(select).toHaveValue(opened)
+
+  // 段階の中で戻ると /train に移り, 進むと /train/jobs に戻る
+  await page.goBack()
+  await expect(page).toHaveURL(/\/train$/)
+  await page.goForward()
+  await expect(page).toHaveURL(/\/train\/jobs$/)
+  await expect(jobs).toBeVisible()
+
+  // 段階をまたいで進むと, 選んだ問題の設定の画面に戻る (一覧に移していれば, 進む先の履歴が消える)
+  await page.goForward()
+  await expect(page).toHaveURL(new RegExp(`/problem/problems/${opened}$`))
+  await expect(page.getByRole('heading', { name: '窯の温度' })).toBeVisible()
+
+  expect(errors).toEqual([])
+})
+
+// 段階を往復しても, 外した学習・評価の段階の画面のルーターが戻ると進むの見張りを残さず,
+// 作り直した画面が見張りを付け直すことを確かめる (残っても欠けても画面の見え方はすぐには
+// 変わらないので, 生きている見張りの数で見る. 殻とルーターの見張りは決まった数なので等しさで比べる)
+test('学習・評価の段階を往復しても戻ると進むの見張りの数が変わらない', async ({ page }) => {
   const errors: string[] = []
   page.on('pageerror', (error) => errors.push(error.message))
   page.on('console', (message) => {
@@ -394,7 +453,7 @@ test('学習・評価の段階を往復しても戻ると進むの見張りが�
   // 数える仕掛けが効いている (殻とルーターの見張りが見える)
   expect(first).toBeGreaterThan(0)
 
-  // 問題の設定と学習・評価を 3 度往復しても, 見張りの数が最初より増えない
+  // 問題の設定と学習・評価を 3 度往復しても, 見張りの数が最初と同じ
   for (let round = 0; round < 3; round += 1) {
     await stages.getByRole('link', { name: '問題の設定' }).click()
     await expect(page).toHaveURL(/\/problem$/)
@@ -403,7 +462,7 @@ test('学習・評価の段階を往復しても戻ると進むの見張りが�
     await expect(page).toHaveURL(/\/train$/)
     await expect(projects).toBeVisible()
   }
-  expect(await watchers()).toBeLessThanOrEqual(first)
+  expect(await watchers()).toBe(first)
 
   expect(errors).toEqual([])
 })
