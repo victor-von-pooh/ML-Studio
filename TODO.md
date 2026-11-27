@@ -6,7 +6,7 @@
 ## 優先度 高
 
 ### 5 つのアプリを 1 つのコマンドと 1 つのポートで起動する
-- 何を: 先に, 載せた ML-Pathfinder と ML-Fathom に要求の R8 (docs/DESIGN.md の「共通のライブラリの版」) を頼み, 合わせた版の submodule を殻で持って, 殻の木の中の同じライブラリが 1 つの版であることを CI で確かめる. 次に ML-CreateArchitecture (`/model`), ML-Dashboard (`/train`), ML-Provide (`/infer`) の順に, 各アプリに要求の R1 から R8 を頼み, submodule で持って殻に載せる. 1 つ載せるごとに殻が開くことを確かめる
+- 何を: 先に, 載せた ML-Pathfinder と ML-Fathom に要求の R8 (docs/DESIGN.md の「共通のライブラリの版」) を頼み, 合わせた版の submodule を殻で持つ. 殻の木の中の同じライブラリが表の版であることを, 表を読んで CI で確かめ, `backend/pyproject.toml` のコメントも表に合わせる. 次に, ML-CreateArchitecture (`/model`), ML-Dashboard (`/train`), ML-Provide (`/infer`) の順に, 各アプリに要求の R1 から R8 を頼み, submodule で持って殻に載せる. 1 つ載せるごとに殻が開くことを確かめる
 - なぜ: 1 つずつ載せると, 要求の足りない所をその段階で見つけて直せるため
 - 終わりの条件: 1 つのコマンドで 5 つの段階の画面が 1 つのポートで開き, 段階の並びで行き来でき, 選んだプロジェクトを全ての段階が見る. 各アプリは単独でも今まで通り動く
 - つながり: 各アプリの TODO.md の統合の項目. 「README.md を仕上げ, docs/GUIDE.md を書く」(載せた段階の使い方を書く)
