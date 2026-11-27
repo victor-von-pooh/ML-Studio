@@ -9,15 +9,19 @@ permissions:
   contents: read
 
 jobs:
-  # 文書とファイルの決まり (触れてよいリポジトリ, 手元のパス, TODO.md の形)
+  # 文書とファイルの決まり (触れてよいリポジトリ, 手元のパス, TODO.md の形) と,
+  # 殻の木の中の共通のライブラリの版 (docs/DESIGN.md の表)
   docs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          submodules: recursive
       - uses: actions/setup-python@v6
         with:
           python-version: "3.13"
       - run: python scripts/check_docs.py
+      - run: python scripts/check_versions.py
 
   # 殻のバックエンド (ML-Pathfinder, ML-Fathom と, それらが submodule で持つ
   # ML-EDA と ML-Quest を submodule から入れる)
