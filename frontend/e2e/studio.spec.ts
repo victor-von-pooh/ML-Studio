@@ -63,7 +63,7 @@ test('問題の設定を作り, プロジェクトの欄で選んで開く', asy
 
 // 殻で選んだ問題の設定を引き継いでデータの分析の段階に移り, 段階の中の移動, API の呼び出し,
 // 殻の明暗の切り替えが ML-Fathom の画面に効くことを確かめる
-test('選んだ問題の設定を引き継いでデータの分析の段階を開く', async ({ page }) => {
+test('選んだ問題の設定を引き継いでデータの分析の段階を開く', async ({ page }, testInfo) => {
   const errors: string[] = []
   page.on('pageerror', (error) => errors.push(error.message))
   page.on('console', (message) => {
@@ -119,14 +119,18 @@ test('選んだ問題の設定を引き継いでデータの分析の段階を�
     (response) => new URL(response.url()).pathname === '/api/data/samples',
   )
   // (見本は登録済みの場所を登録し直さないので, やり直しと繰り返しの 2 回目からは「登録済み」と
-  // 出る. どちらでも, 全てのデータを出すと 5 つの見本が 1 つずつ並ぶ)
+  // 出る. 最初の回は置き場が新しく, studio で見本を入れるのはこのテストだけで workers も 1 なので,
+  // 5 件の登録を求める (登録できたのに API が空を返す誤りを拾うため). どの回でも, 全てのデータを
+  // 出すと 5 つの見本が 1 つずつ並ぶ)
   await page.getByRole('button', { name: '見本のデータを入れる' }).click()
   expect((await samples).status()).toBe(200)
+  const first = testInfo.retry === 0 && testInfo.repeatEachIndex === 0
   await expect(page.getByRole('status')).toHaveText(
-    /^(見本を \d+ 件登録しました|見本は登録済みです)/,
+    first ? /^見本を 5 件登録しました/ : /^(見本を \d+ 件登録しました|見本は登録済みです)/,
     { timeout: 30_000 },
   )
   await page.getByLabel(/^全てのデータを出す/).check()
+  // 見本の名前は ML-Fathom の backend/src/ml_fathom/samples.py の SAMPLES の鍵
   for (const sample of [
     '顧客の解約 (表)',
     '電力の使用量 (時系列)',
