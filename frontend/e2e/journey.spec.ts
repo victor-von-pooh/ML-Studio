@@ -5,8 +5,9 @@ import { expect, test, type Page } from '@playwright/test'
 // 小さな見本で 5 つの段階を画面で通す. 前の段階の結果 (問題の設定に記録した学習の
 // プロジェクト, 書き出したデータセット, 保存したモデルの定義, 学習の実験) を次の段階が
 // 殻で選んだ問題の設定から読むことを確かめ, 段階の間で値やファイルを手で写さない.
-// テストが決めるのは, 問題の設定に入れる手元のデータ, 学習のプロジェクトの書き出し先,
-// 推論に渡すデータの 3 つの場所だけ (どれも段階の外から来る値)
+// テストが決めるのは, 問題の設定に入れる手元のデータと学習のプロジェクトの書き出し先の
+// 2 つの場所だけ (どちらも段階の外から来る値). 推論するデータは, 学習に使ったデータセットの
+// テスト用の分割を推論の段階の画面で選ぶ
 
 /** 段階の並びで段階に移る */
 async function goStage(page: Page, name: string, path: RegExp) {
@@ -88,6 +89,7 @@ test('小さな見本で 5 つの段階を通し, 前の段階の結果を次の
 
   // 2. データの分析: 殻で選んだ問題の設定から始め, 記録した場所へデータセットを書き出す
   await goStage(page, 'データの分析', /\/data$/)
+  // (この欄は region の名前を持たないので, 見出しで絞る)
   const card = page
     .locator('section')
     .filter({ has: page.getByRole('heading', { name: '選んだ問題の設定' }) })
@@ -95,9 +97,14 @@ test('小さな見本で 5 つの段階を通し, 前の段階の結果を次の
   await card.getByRole('button', { name: 'この問題の設定から始める' }).click()
   await expect(page).toHaveURL(/\/data\/sources\/[^/]+$/, { timeout: 30_000 })
   await page.getByRole('tab', { name: '前処理と書き出し' }).click()
-  await expect(page.getByText(`${projectDir}/outputs/dataset`).first()).toBeVisible()
-  await page.getByRole('button', { name: 'プロジェクトへ書き出す' }).click()
-  await expect(page.getByText(/プロジェクトへ書き出しました/)).toBeVisible({ timeout: 30_000 })
+  const exportDataset = page.getByRole('region', { name: 'プロジェクトへ書き出す' })
+  await expect(
+    exportDataset.getByText(`${projectDir}/outputs/dataset`, { exact: true }),
+  ).toBeVisible()
+  await exportDataset.getByRole('button', { name: 'プロジェクトへ書き出す' }).click()
+  await expect(exportDataset.getByRole('status')).toContainText('プロジェクトへ書き出しました', {
+    timeout: 30_000,
+  })
 
   // 3. モデルの作成・選定: 殻で選んだ問題の設定の記録からデータセットと保存先が入り,
   // 入力と出力を作って学習のプロジェクトに保存する
@@ -117,7 +124,11 @@ test('小さな見本で 5 つの段階を通し, 前の段階の結果を次の
     project.getByRole('region', { name: 'データセットから入力と出力を作る' }).getByRole('status'),
   ).toContainText('データセットから入れました', { timeout: 20_000 })
   const saving = project.getByRole('region', { name: 'プロジェクトに保存' })
-  await expect(saving.getByText(`${projectDir}/models/model.yaml`).first()).toBeVisible()
+  await expect(
+    saving
+      .getByRole('group', { name: '保存先' })
+      .getByText(`${projectDir}/models/model.yaml`, { exact: true }),
+  ).toBeVisible()
   await saving.getByRole('button', { name: 'この場所に保存' }).click()
   await expect(saving.getByRole('status')).toContainText('に保存しました', { timeout: 20_000 })
   await project.getByRole('button', { name: '閉じる' }).click()
@@ -125,38 +136,42 @@ test('小さな見本で 5 つの段階を通し, 前の段階の結果を次の
 
   // 4. 学習・評価: 殻で選んだ問題の設定が記録したプロジェクトを登録し, 1 エポックだけ学習する
   await goStage(page, '学習・評価', /\/train$/)
+  // (この欄は region の名前を持たないので, 見出しで絞る)
   const note = page.locator('section', {
     has: page.getByRole('heading', { name: '選んだ問題の設定' }),
   })
-  await expect(note.getByText(projectDir).first()).toBeVisible()
+  await expect(note.getByText(projectDir, { exact: true })).toBeVisible()
   await note.getByRole('button', { name: '登録して開く' }).click()
   await expect(page).toHaveURL(/\/train\/projects\/[^/]+$/)
-  await page.getByRole('link', { name: '学習を起動' }).first().click()
+  await page.getByRole('link', { name: '学習を起動', exact: true }).click()
   await expect(page).toHaveURL(/\/launch$/)
   const epochs = page.getByLabel('エポック数')
   await epochs.fill('1')
   await epochs.press('Enter')
   await page.getByRole('button', { name: '学習を開始' }).click()
   await expect(page).toHaveURL(/\/train\/jobs\/[^/]+$/)
-  // 「完了」は学習の後の評価と推論の一式の書き出しの前に出るので, プロセスの終わり
-  // (終了コード) を待つ. 0 でなければ, ジョブの画面の文を付けてすぐ落とす
-  const exit = page.getByText(/終了コード \d+/).first()
-  await expect(exit).toBeVisible({ timeout: 180_000 })
-  const code = (await exit.textContent()) ?? ''
-  expect(code, await page.locator('main').innerText()).toMatch(/終了コード 0(?!\d)/)
+  // ジョブの画面は, 学習の後に評価と推論の一式を書き出してから「完了」を出す (書き出しの間は
+  // 「後の処理中」で, その説明文にも「完了」の語が入るので, 状態の印を文の全体で合わせる).
+  // 失敗か中断で止まったら, ジョブの画面の文を付けてすぐ落とす
+  const main = page.getByRole('main')
+  const settled = main.getByText(/^(完了|失敗|中断)$/)
+  await expect(settled).toBeVisible({ timeout: 180_000 })
+  expect(await settled.textContent(), await main.innerText()).toBe('完了')
 
-  // 5. 推論: 殻で選んだ問題の設定の実験から一式を登録し, 手元のデータで推論する
+  // 5. 推論: 殻で選んだ問題の設定の実験から一式を登録し, 学習に使ったデータセットの
+  // テスト用の分割を選んで推論する (場所は推論の段階が一式の実験から見つける)
   await goStage(page, '推論', /\/infer$/)
   await page.getByRole('button', { name: '実験の一覧から登録' }).click()
   const experiments = page.getByRole('dialog', { name: '実験の一覧から登録' })
   await expect(experiments.getByText(`選んだプロジェクト ${opened}`)).toBeVisible()
   await experiments.getByRole('button', { name: /^解約の引き止め \(.+\) を登録$/ }).click()
   await expect(page).toHaveURL(/\/infer\/bundles\/[^/]+$/, { timeout: 30_000 })
-  await page
-    .getByLabel('推論するデータ (学習のときと同じ列のファイルか, 画像などのディレクトリ)')
-    .fill(table)
+  await page.getByRole('radio', { name: '元のデータセットのテスト用の分割' }).check()
+  const split = page.getByRole('region', { name: 'テスト用の分割' })
+  await expect(split).toContainText(`${projectDir}/outputs/dataset`)
   await page.getByRole('button', { name: '推論する', exact: true }).click()
   await expect(page).toHaveURL(/\/infer\/results\/[^/]+$/, { timeout: 60_000 })
+  await expect(page.getByText(/元のデータセットのテスト用の分割 \(.+ の test\)/)).toBeVisible()
   await expect(page.getByRole('link', { name: 'CSV' })).toBeVisible()
   await expect(select).toHaveValue(opened)
 
