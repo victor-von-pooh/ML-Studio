@@ -8,13 +8,15 @@ PORT ?= 8760
 DEV_TOKEN := $(or $(DEV_TOKEN),$(shell python3 -c 'import secrets; print(secrets.token_urlsafe(16))'))
 
 # 殻の環境に足す, モデルの作成・選定の段階の外部のライブラリの部品の extra
-# (make setup EXTRAS="timm einops" のように空白で区切る. 既定は無し)
-EXTRAS ?=
+# (make setup EXTRAS="timm einops" のように空白で区切る. 既定は無し.
+# 選べる名前は make extras-list. 同じ名前の環境変数は読まないよう ?= に
+# しない)
+EXTRAS :=
 comma := ,
 empty :=
 space := $(empty) $(empty)
 
-.PHONY: setup extras dev dev-backend dev-frontend build serve check
+.PHONY: setup extras extras-list dev dev-backend dev-frontend build serve check
 
 # 依存のインストール (submodule の中の submodule も取り出す. EXTRAS が
 # あれば, その extra も足す)
@@ -27,16 +29,23 @@ ifneq ($(strip $(EXTRAS)),)
 endif
 
 # 殻の環境に ML-CreateArchitecture の extra (ML-ModelControl の同じ名前の
-# extra) を足す. 名前は ML-CreateArchitecture の extra (project を除く) と
-# 確かめ (scripts/check_extras.py), 入っているライブラリは backend/uv.lock の
-# 版のまま (制約) にする. 制約は 1 度ファイルに書き, 書けた場合だけ入れる
-# (パイプでは書けなくても制約なしで入れてしまうため).
+# extra) を足す. 名前は ML-CreateArchitecture と ML-ModelControl の両方の
+# extra (project を除く) と確かめ (scripts/check_extras.py. 殻の環境の
+# Python で, 環境が無ければ作らずに止める), 入っているライブラリは
+# backend/uv.lock の版のまま (制約) にする. 制約は 1 度ファイルに書き, 書けた
+# 場合だけ入れる (パイプでは書けなくても制約なしで入れてしまうため).
 # 殻の pyproject.toml の上書きは ml-modelcontrol を extra 無しに置き換える
 # ので, その設定を読まずに (--no-config) 入れる. 前に足した extra は残し,
 # uv sync (make setup) で既定に戻る
 extras:
-	cd backend && uv run --no-sync python ../scripts/check_extras.py $(EXTRAS)
-	cd backend && uv export --frozen --no-hashes --no-emit-local --no-header --no-annotate -o .venv/extras-constraints.txt && uv pip install --no-config --python .venv --constraints .venv/extras-constraints.txt -e "../ML-CreateArchitecture/ML-ModelControl[$(subst $(space),$(comma),$(strip $(EXTRAS)))]"
+	@test -x backend/.venv/bin/python || { echo "殻の環境がありません. 先に make setup を実行してください"; exit 1; }
+	cd backend && .venv/bin/python ../scripts/check_extras.py $(EXTRAS)
+	cd backend && uv export -q --frozen --no-hashes --no-emit-local --no-header --no-annotate -o .venv/extras-constraints.txt && uv pip install --no-config --python .venv --constraints .venv/extras-constraints.txt -e "../ML-CreateArchitecture/ML-ModelControl[$(subst $(space),$(comma),$(strip $(EXTRAS)))]"
+
+# 殻の環境に足せる extra の名前の一覧
+extras-list:
+	@test -x backend/.venv/bin/python || { echo "殻の環境がありません. 先に make setup を実行してください"; exit 1; }
+	@cd backend && .venv/bin/python ../scripts/check_extras.py --list
 
 # 開発用のサーバー (API と画面を並べて起動. 別々の端末なら dev-backend と dev-frontend)
 dev:
