@@ -49,6 +49,7 @@ def create_api(
 | `app.state` (置き場など) と例外ハンドラは今のまま持つ | mount した sub-app の中では `request.app` が sub-app を指すので, 今の取り方のまま動く |
 | lifespan と startup, shutdown の処理を使わず, 要る準備は `create_api` の中で済ませる | mount した sub-app の lifespan は Starlette が動かさないため |
 | モジュールの読み込みで app を作らず, 呼ぶたびに新しいアプリを返す | テストと殻で別の置き場を渡せるようにする |
+| 起動を止める場合 (読めない自作の部品など) は `ValueError` (かその子) を, 利用者に見せる日本語の理由を付けて出す. 同じプロセスの他のアプリの状態 (登録簿の部品など) は消さない | 殻の起動が理由の 1 行を出して終われるように, 型を 1 つにそろえる |
 
 単独の `create_app` は, 確かめと `/api/auth` と画面の配信を付けた外側のアプリに, `create_api(...)` を `/api` の下で加える (今の経路 `/api/...` と振る舞いを保つため).
 
@@ -166,10 +167,11 @@ def create_api(
 | --- | --- | --- |
 | ML-Quest | `8ec1524` | ML-Pathfinder (submodule), ML-Fathom (submodule), ML-CreateArchitecture (git の依存) |
 | ML-EDA | `2a7782f` | ML-Fathom (submodule), ML-CreateArchitecture (git の依存), ML-Pathfinder (ML-Quest を通して) |
+| ML-ModelControl | `24d3720` | ML-CreateArchitecture (submodule), ML-Provide (git の依存. ML-Inference を通しても) |
 
 - 殻の木の中の同じライブラリの submodule と, 載せた各アプリが git の依存で直に持つライブラリの lock の版が, 全てこの表の版であることを, CI で `scripts/check_versions.py` が表を読んで確かめる (アプリの submodule を上げ忘れると, 殻の 1 つの環境のどの版で動いているかが分からなくなるため)
 - 版はライブラリの `main` のコミットから選ぶ. 上げるときは, 先にこの表を直してから各アプリに頼み, 全てのアプリが合わせた後に, 殻が持つ各アプリの submodule の版を上げる (アプリごとに上げると, 殻の 1 つの環境で版がぶつかるため)
-- 段階を載せて新しい共通のライブラリ (ML-ModelControl, ML-Found, ML-Inference など) を持つアプリが 2 つ以上になったら, この表に足す
+- 新しい共通のライブラリ (ML-Found, ML-Inference など) を使うアプリが 2 つ以上になったら, そのアプリを殻に載せる前に, この表に足す (載せる前にアプリが表の版に合わせられるようにするため)
 - ライブラリが git の版で求める他のライブラリ (ML-Quest の `ml-eda` の求めなど) は, 殻では上の `override-dependencies` で表の版に置き換わる. 各アプリの単独の起動はその求めのままでよい
 
 ## 9. 各アプリへの要求と進め方
