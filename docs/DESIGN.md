@@ -160,6 +160,7 @@ def create_api(
 | ML-Quest | `8ec1524` | ML-Pathfinder (submodule), ML-Fathom (submodule) |
 | ML-EDA | `2a7782f` | ML-Fathom (submodule), ML-Pathfinder (ML-Quest を通して) |
 
+- 殻の木の中の同じライブラリの submodule が全てこの表の版であることを, CI で `scripts/check_versions.py` が表を読んで確かめる (アプリの submodule を上げ忘れると, 殻の 1 つの環境のどの版で動いているかが分からなくなるため)
 - 版はライブラリの `main` のコミットから選ぶ. 上げるときは, 先にこの表を直してから各アプリに頼み, 全てのアプリが合わせた後に, 殻が持つ各アプリの submodule の版を上げる (アプリごとに上げると, 殻の 1 つの環境で版がぶつかるため)
 - 段階を載せて新しい共通のライブラリ (ML-ModelControl, ML-Found, ML-Inference など) を持つアプリが 2 つ以上になったら, この表に足す
 - ライブラリが git の版で求める他のライブラリ (ML-Quest の `ml-eda` の求めなど) は, 殻では上の `override-dependencies` で表の版に置き換わる. 各アプリの単独の起動はその求めのままでよい
