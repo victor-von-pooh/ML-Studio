@@ -449,7 +449,11 @@ test('段階の画面を読めないときは理由を出し, 再読み込みで
 test('殻の帯のキーで段階の中身を変えず, 書きかけを下書きから戻せる', async ({ page }) => {
   const errors: string[] = []
   page.on('pageerror', (error) => errors.push(error.message))
-  page.on('dialog', (dialog) => void dialog.accept())
+  // この流れでは確かめの窓は出ない (下書きを開くときに今の変更が無い). 出たら誤りとして断る
+  page.on('dialog', (dialog) => {
+    errors.push(`想定しない確かめ: ${dialog.message()}`)
+    void dialog.dismiss()
+  })
 
   await page.goto('/api/auth?token=e2e-token')
   await expect(page).toHaveURL(/\/problem$/)
@@ -466,15 +470,23 @@ test('殻の帯のキーで段階の中身を変えず, 書きかけを下書き
   await expect(page.getByRole('button', { name: '保存 *' })).toBeVisible()
   await relu.click()
 
-  // R9: 殻の帯のボタンに focus を置いて消すと元に戻すを押しても, 中身は変わらない
+  // R9: 殻の帯のボタンに focus を置いて押したキーは, 1 つずつ中身を変えない
   const theme = page.getByRole('button', { name: /表示にする$/ })
+  const edges = page.locator('.react-flow__edge')
+  await expect(edges).toHaveCount(1)
   await theme.focus()
-  await page.keyboard.press('Delete')
-  await page.keyboard.press('Backspace')
+  for (const key of ['Delete', 'Backspace']) {
+    // 選んだ relu1 を消さない
+    await page.keyboard.press(key)
+    await expect(theme).toBeFocused()
+    await expect(relu).toHaveCount(1)
+    await expect(edges).toHaveCount(1)
+  }
+  // 何も消していない状態の元に戻すで, 置いた relu1 を消さない
   await page.keyboard.press('ControlOrMeta+z')
   await expect(theme).toBeFocused()
   await expect(relu).toHaveCount(1)
-  await expect(page.locator('.react-flow__edge')).toHaveCount(1)
+  await expect(edges).toHaveCount(1)
 
   // 対照: 段階の中に focus を戻すと, 同じキーで消え, 元に戻すで戻る
   await relu.click()

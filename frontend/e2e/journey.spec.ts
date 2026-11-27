@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 
 import { expect, test, type Page } from '@playwright/test'
 
@@ -32,15 +32,23 @@ function churnTable(): string {
   return rows.join('\n') + '\n'
 }
 
-test('小さな見本で 5 つの段階を通し, 前の段階の結果を次の段階が読む', async ({ page }) => {
+test('小さな見本で 5 つの段階を通し, 前の段階の結果を次の段階が読む', async ({
+  page,
+}, testInfo) => {
   // 学習を含むので長めに待つ
   test.setTimeout(300_000)
   const errors: string[] = []
   page.on('pageerror', (error) => errors.push(error.message))
-  // 上書きの確かめ (window.confirm) には全て答える
-  page.on('dialog', (dialog) => void dialog.accept())
+  // この流れでは確かめの窓 (window.confirm など) は出ない. 出たら誤りとして断る
+  page.on('dialog', (dialog) => {
+    errors.push(`想定しない確かめ: ${dialog.message()}`)
+    void dialog.dismiss()
+  })
 
-  const work = `${process.cwd()}/e2e/.work/journey`
+  // やり直し (CI の retries) と繰り返しごとに別の場所に書き出す (殻の置き場は起動のときに
+  // 1 度だけ消すので, 同じ場所だと前の書き出しや登録が残り, 上書きの確かめで止まるため)
+  const work = `${process.cwd()}/e2e/.work/journey-${testInfo.repeatEachIndex}-${testInfo.retry}`
+  rmSync(work, { recursive: true, force: true })
   mkdirSync(work, { recursive: true })
   const table = `${work}/churn.csv`
   writeFileSync(table, churnTable())
@@ -130,8 +138,12 @@ test('小さな見本で 5 つの段階を通し, 前の段階の結果を次の
   await epochs.press('Enter')
   await page.getByRole('button', { name: '学習を開始' }).click()
   await expect(page).toHaveURL(/\/train\/jobs\/[^/]+$/)
-  // 「完了」は学習の後の評価と推論の一式の書き出しの前に出るので, プロセスの終わりを待つ
-  await expect(page.getByText(/終了コード 0/)).toBeVisible({ timeout: 180_000 })
+  // 「完了」は学習の後の評価と推論の一式の書き出しの前に出るので, プロセスの終わり
+  // (終了コード) を待つ. 0 でなければ, ジョブの画面の文を付けてすぐ落とす
+  const exit = page.getByText(/終了コード \d+/).first()
+  await expect(exit).toBeVisible({ timeout: 180_000 })
+  const code = (await exit.textContent()) ?? ''
+  expect(code, await page.locator('main').innerText()).toMatch(/終了コード 0(?!\d)/)
 
   // 5. 推論: 殻で選んだ問題の設定の実験から一式を登録し, 手元のデータで推論する
   await goStage(page, '推論', /\/infer$/)

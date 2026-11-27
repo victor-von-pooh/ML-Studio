@@ -117,7 +117,7 @@ jobs:
       - if: steps.playwright-cache.outputs.cache-hit == 'true'
         run: pnpm exec playwright install-deps chromium
         working-directory: frontend
-      - run: pnpm e2e studio.spec.ts
+      - run: pnpm e2e --project=studio
         working-directory: frontend
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
@@ -162,7 +162,7 @@ jobs:
       - if: steps.playwright-cache.outputs.cache-hit == 'true'
         run: pnpm exec playwright install-deps chromium
         working-directory: frontend
-      - run: pnpm e2e journey.spec.ts
+      - run: pnpm e2e --project=journey
         working-directory: frontend
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
