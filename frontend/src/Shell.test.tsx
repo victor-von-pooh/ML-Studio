@@ -3,11 +3,12 @@ import type { StageAppProps } from 'ml-pathfinder-frontend'
 
 import { Shell } from './Shell'
 
-/** 最後に描いた根の部品の props と段階のアプリ, 作った回数 */
+/** 最後に描いた根の部品の props と段階のアプリ, 作った回数, 描くと例外を出すアプリ */
 const stage = vi.hoisted(() => ({
   props: null as StageAppProps | null,
   app: null as string | null,
   mounts: 0,
+  fail: null as string | null,
 }))
 
 /** 根の部品の代わりに, 受け取った props を覚えて出す部品を作る */
@@ -15,6 +16,7 @@ const mockStageApp = vi.hoisted(() => async (app: string) => {
   const { useEffect } = await import('react')
   return {
     StageApp: (props: StageAppProps) => {
+      if (stage.fail === app) throw new Error(`${app} の画面の誤り`)
       stage.props = props
       stage.app = app
       useEffect(() => {
@@ -55,6 +57,7 @@ beforeEach(() => {
   stage.props = null
   stage.app = null
   stage.mounts = 0
+  stage.fail = null
   localStorage.clear()
   document.documentElement.classList.remove('dark')
   window.history.replaceState(null, '', '/')
@@ -62,12 +65,30 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals()
+  vi.restoreAllMocks()
 })
+
+/**
+ * 段階のアプリの根の部品を画面に出すまで待つ (根の部品は段階ごとに分けて読み,
+ * React は読み込み中の表示を少しの間保つので, 描いた後の画面を見る)
+ */
+async function waitForStage(app?: string) {
+  await waitFor(() => {
+    expect(screen.queryByRole('status')).toBeNull()
+    expect(screen.getByText(new RegExp(`^${app ?? '.+'} project:`))).toBeInTheDocument()
+  })
+}
+
+/** 殻を描き, 段階の根の部品を出すまで待つ */
+async function renderShell() {
+  render(<Shell />)
+  await waitForStage()
+}
 
 describe('殻の画面', () => {
   it('/ は /problem に移し, 問題の設定の根の部品に頭と殻の値を渡す', async () => {
     mockProblems([])
-    render(<Shell />)
+    await renderShell()
     expect(window.location.pathname).toBe('/problem')
     expect(stage.props).toMatchObject({
       basename: '/problem',
@@ -80,9 +101,9 @@ describe('殻の画面', () => {
     )
   })
 
-  it('段階の並びは 5 つの段階を出し, 載っていない段階は押せない', () => {
+  it('段階の並びは 5 つの段階を出し, 載っていない段階は押せない', async () => {
     mockProblems([])
-    render(<Shell />)
+    await renderShell()
     const nav = screen.getByRole('navigation', { name: '段階' })
     const current = screen.getByRole('link', { name: '問題の設定' })
     expect(current).toHaveAttribute('aria-current', 'step')
@@ -102,9 +123,10 @@ describe('殻の画面', () => {
   it('モデルの作成・選定を押すと, 選んだプロジェクトを引き継いで ML-CreateArchitecture の根の部品を出す', async () => {
     localStorage.setItem('studio-project', 'p1')
     mockProblems([{ id: 'p1', name: '需要' }])
-    render(<Shell />)
+    await renderShell()
     fireEvent.click(screen.getByRole('link', { name: 'モデルの作成・選定' }))
     expect(window.location.pathname).toBe('/model')
+    await waitForStage('ML-CreateArchitecture')
     expect(screen.getByRole('link', { name: 'モデルの作成・選定' })).toHaveAttribute(
       'aria-current',
       'step',
@@ -127,11 +149,12 @@ describe('殻の画面', () => {
   it('データの分析を押すと, 選んだプロジェクトを引き継いで ML-Fathom の根の部品を出す', async () => {
     localStorage.setItem('studio-project', 'p1')
     mockProblems([{ id: 'p1', name: '需要' }])
-    render(<Shell />)
+    await renderShell()
     expect(stage.app).toBe('ML-Pathfinder')
     const length = window.history.length
     fireEvent.click(screen.getByRole('link', { name: 'データの分析' }))
     expect(window.location.pathname).toBe('/data')
+    await waitForStage('ML-Fathom')
     expect(window.history.length).toBe(length + 1)
     expect(screen.getByRole('link', { name: 'データの分析' })).toHaveAttribute(
       'aria-current',
@@ -155,23 +178,23 @@ describe('殻の画面', () => {
     act(() => {
       window.history.back()
     })
-    await waitFor(() => expect(stage.app).toBe('ML-Pathfinder'))
+    await waitForStage('ML-Pathfinder')
     expect(window.location.pathname).toBe('/problem')
   })
 
-  it('/data で開くと, データの分析の段階から始める', () => {
+  it('/data で開くと, データの分析の段階から始める', async () => {
     mockProblems([])
     window.history.replaceState(null, '', '/data/sources/s1')
-    render(<Shell />)
+    await renderShell()
     expect(window.location.pathname).toBe('/data/sources/s1')
     expect(stage.app).toBe('ML-Fathom')
     expect(stage.props?.basename).toBe('/data')
   })
 
-  it('/model で開くと, モデルの作成・選定の段階から始める', () => {
+  it('/model で開くと, モデルの作成・選定の段階から始める', async () => {
     mockProblems([])
     window.history.replaceState(null, '', '/model')
-    render(<Shell />)
+    await renderShell()
     expect(window.location.pathname).toBe('/model')
     expect(stage.app).toBe('ML-CreateArchitecture')
     expect(stage.props?.basename).toBe('/model')
@@ -183,7 +206,7 @@ describe('殻の画面', () => {
       { id: 'p1', name: '需要' },
       { id: 'p2', name: '解約' },
     ])
-    render(<Shell />)
+    await renderShell()
     const select = screen.getByLabelText('プロジェクト')
     await screen.findByRole('option', { name: '解約' })
     fireEvent.change(select, { target: { value: 'p2' } })
@@ -202,7 +225,7 @@ describe('殻の画面', () => {
       { id: 'p1', name: '需要' },
       { id: 'p2', name: '解約' },
     ])
-    render(<Shell />)
+    await renderShell()
     expect(stage.props?.project).toBe('p1')
     await screen.findByRole('option', { name: '解約' })
 
@@ -214,7 +237,7 @@ describe('殻の画面', () => {
 
   it('部品の onProjectsChange で一覧を読み直す', async () => {
     const fetchMock = mockProblems([], [{ id: 'p3', name: '新しい問題' }])
-    render(<Shell />)
+    await renderShell()
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
     fireEvent.click(screen.getByRole('button', { name: '一覧が変わった' }))
     expect(await screen.findByRole('option', { name: '新しい問題' })).toBeInTheDocument()
@@ -225,29 +248,29 @@ describe('殻の画面', () => {
       'fetch',
       vi.fn(async () => new Response('{}', { status: 401 })),
     )
-    render(<Shell />)
+    await renderShell()
     expect(await screen.findByRole('alert')).toHaveTextContent('一覧を読めません (401)')
   })
 
-  it('段階を押し直すと履歴を増やさずに頭に戻して部品を作り直す', () => {
+  it('段階を押し直すと履歴を増やさずに頭に戻して部品を作り直す', async () => {
     mockProblems([])
     window.history.replaceState(null, '', '/problem/problems/p1')
-    render(<Shell />)
+    await renderShell()
     const mounts = stage.mounts
     const length = window.history.length
     fireEvent.click(screen.getByRole('link', { name: '問題の設定' }))
     expect(window.location.pathname).toBe('/problem')
     expect(window.history.length).toBe(length)
-    expect(stage.mounts).toBe(mounts + 1)
+    await waitFor(() => expect(stage.mounts).toBe(mounts + 1))
 
     // 修飾キー付きで押したときはブラウザに任せる
     fireEvent.click(screen.getByRole('link', { name: '問題の設定' }), { ctrlKey: true })
     expect(stage.mounts).toBe(mounts + 1)
   })
 
-  it('戻ると進むで, 段階の中の移動では作り直さず, 殻が経路を置き換えたときは作り直す', () => {
+  it('戻ると進むで, 段階の中の移動では作り直さず, 殻が経路を置き換えたときは作り直す', async () => {
     mockProblems([])
-    render(<Shell />)
+    await renderShell()
     const mounts = stage.mounts
 
     // 段階の中の経路 (部品のルーターが読む)
@@ -263,20 +286,69 @@ describe('殻の画面', () => {
       window.dispatchEvent(new PopStateEvent('popstate'))
     })
     expect(window.location.pathname).toBe('/problem')
-    expect(stage.mounts).toBe(mounts + 1)
+    await waitFor(() => expect(stage.mounts).toBe(mounts + 1))
   })
 
   it('一覧に無い選びも欄に出す', async () => {
     localStorage.setItem('studio-project', 'gone')
     mockProblems([{ id: 'p1', name: '需要' }])
-    render(<Shell />)
+    await renderShell()
     expect(await screen.findByRole('option', { name: 'gone (一覧に無い)' })).toBeInTheDocument()
     expect(screen.getByLabelText('プロジェクト')).toHaveValue('gone')
   })
 
-  it('明暗の切り替えは html の dark と localStorage の theme に置く', () => {
+  it('段階の画面を読む間は, 殻の帯を出したまま段階の場所に読み込み中と出す', async () => {
     mockProblems([])
+    // 前のテストで読んだ根の部品を覚えていない殻を読み直す
+    vi.resetModules()
+    const { Shell: FreshShell } = await import('./Shell')
+    render(<FreshShell />)
+    expect(screen.getByRole('navigation', { name: '段階' })).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('段階の画面を読み込んでいます')
+    await waitForStage('ML-Pathfinder')
+    expect(screen.queryByRole('status')).toBeNull()
+  })
+
+  it('段階の画面を出せないときは, 殻の帯を残して理由を出し, 別の段階に移ると出し直す', async () => {
+    // React と境界が出す誤りの記録を抑える
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockProblems([])
+    stage.fail = 'ML-Fathom'
+    window.history.replaceState(null, '', '/data')
     render(<Shell />)
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('段階の画面を出せません')
+    expect(alert).toHaveTextContent('ML-Fathom の画面の誤り')
+    expect(screen.getByRole('button', { name: '再読み込み' })).toBeInTheDocument()
+    expect(screen.getByLabelText('プロジェクト')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('link', { name: '問題の設定' }))
+    await waitForStage('ML-Pathfinder')
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
+  it('段階の画面を読めないときも, 殻の帯を残して理由を出す', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockProblems([])
+    window.history.replaceState(null, '', '/data')
+    // データの分析の段階の画面を読めない殻を読み直す
+    vi.resetModules()
+    vi.doMock('ml-fathom-frontend', () => Promise.reject(new Error('チャンクを読めない')))
+    try {
+      const { Shell: FreshShell } = await import('./Shell')
+      render(<FreshShell />)
+      const alert = await screen.findByRole('alert')
+      expect(alert).toHaveTextContent('段階の画面を出せません')
+      // (理由の文は vitest が包むので, 出せないことだけを見る)
+      expect(screen.getByRole('navigation', { name: '段階' })).toBeInTheDocument()
+    } finally {
+      vi.doMock('ml-fathom-frontend', () => mockStageApp('ML-Fathom'))
+    }
+  })
+
+  it('明暗の切り替えは html の dark と localStorage の theme に置く', async () => {
+    mockProblems([])
+    await renderShell()
     fireEvent.click(screen.getByRole('button', { name: '暗い表示にする' }))
     expect(document.documentElement).toHaveClass('dark')
     expect(localStorage.getItem('theme')).toBe('dark')

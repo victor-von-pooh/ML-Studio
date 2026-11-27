@@ -213,3 +213,68 @@ test('選んだ問題の設定を引き継いでモデルの作成・選定の�
 
   expect(errors).toEqual([])
 })
+
+// 段階の根の部品は段階ごとに分けて読む. 最初は開いた段階の分だけを読み, 各段階の頭を直に
+// 開いても再読み込みしても段階の画面を出す
+test('段階の画面を段階ごとに読み, 直に開いても再読み込みしても出す', async ({ page }) => {
+  const errors: string[] = []
+  page.on('pageerror', (error) => errors.push(error.message))
+  page.on('console', (message) => {
+    if (message.type() === 'error') errors.push(message.text())
+  })
+  // 読んだ段階のチャンク (ビルドの名前は根の部品のファイルの名前から付く. 各アプリの
+  // 画面のパッケージの exports の `.` が src/StageApp.tsx である前提)
+  const chunks = new Set<string>()
+  page.on('request', (request) => {
+    const path = new URL(request.url()).pathname
+    if (/\/assets\/StageApp-[^/]+\.js$/.test(path)) chunks.add(path)
+  })
+
+  await page.goto('/api/auth?token=e2e-token')
+  await expect(page).toHaveURL(/\/problem$/)
+  await expect(page.getByLabel(/^問題の名前/)).toBeVisible()
+  expect(chunks.size).toBe(1)
+
+  // モデルの作成・選定の頭を直に開き, 再読み込みしてもキャンバスを出す
+  await page.goto('/model')
+  await expect(page.locator('.react-flow')).toBeVisible()
+  await page.reload()
+  await expect(page.locator('.react-flow')).toBeVisible()
+  await expect(
+    page
+      .getByRole('navigation', { name: '段階' })
+      .getByRole('link', { name: 'モデルの作成・選定' }),
+  ).toHaveAttribute('aria-current', 'step')
+
+  // データの分析の段階の中の経路を直に開き, 再読み込みしても同じ画面を出す
+  await page.goto('/data/datasets')
+  await expect(page.getByRole('heading', { name: '書き出したデータセット' })).toBeVisible()
+  await page.reload()
+  await expect(page.getByRole('heading', { name: '書き出したデータセット' })).toBeVisible()
+  expect(chunks.size).toBe(3)
+
+  expect(errors).toEqual([])
+})
+
+// 段階の画面を読めないときは, 殻の帯を残して段階の場所に理由と再読み込みのボタンを出し,
+// 再読み込みで読み直す
+test('段階の画面を読めないときは理由を出し, 再読み込みで読み直す', async ({ page }) => {
+  await page.goto('/api/auth?token=e2e-token')
+  await expect(page).toHaveURL(/\/problem$/)
+  await expect(page.getByLabel(/^問題の名前/)).toBeVisible()
+
+  // 問題の設定の段階を開いた後は, 段階のチャンクを読めなくする
+  await page.route(/\/assets\/StageApp-[^/]+\.js$/, (route) => route.abort())
+  const stages = page.getByRole('navigation', { name: '段階' })
+  await stages.getByRole('link', { name: 'データの分析' }).click()
+  await expect(page).toHaveURL(/\/data$/)
+  const alert = page.getByRole('alert')
+  await expect(alert).toContainText('段階の画面を出せません')
+  await expect(page.getByLabel('プロジェクト')).toBeVisible()
+
+  // 読めるように戻して再読み込みすると, データの分析の段階を出す
+  await page.unroute(/\/assets\/StageApp-[^/]+\.js$/)
+  await alert.getByRole('button', { name: '再読み込み' }).click()
+  await expect(page.getByRole('heading', { name: 'データ', exact: true })).toBeVisible()
+  await expect(page.getByRole('alert')).toHaveCount(0)
+})
