@@ -1,4 +1,5 @@
 import { Moon, Sun, Workflow } from 'lucide-react'
+import { StageApp as ModelStageApp } from 'ml-createarchitecture-frontend'
 import { StageApp as DataStageApp } from 'ml-fathom-frontend'
 import { StageApp as ProblemStageApp } from 'ml-pathfinder-frontend'
 import type { ChangeEvent, MouseEvent } from 'react'
@@ -163,6 +164,17 @@ export function Shell() {
             key={location.key}
             basename={stageBase('data')}
             apiBase={stageApiBase('data')}
+            project={project}
+            onProjectChange={selectProject}
+            onProjectsChange={projects.reload}
+            embedded
+          />
+        )}
+        {location.stage === 'model' && (
+          <ModelStageApp
+            key={location.key}
+            basename={stageBase('model')}
+            apiBase={stageApiBase('model')}
             project={project}
             onProjectChange={selectProject}
             onProjectsChange={projects.reload}

@@ -62,10 +62,14 @@ def app_client(
     client: TestClient
         トークンを持たない利用者
     """
-    # ML-Pathfinder と ML-Fathom の既定の置き場の一時ディレクトリへの
-    # 差し替え
+    # ML-Pathfinder, ML-Fathom, ML-CreateArchitecture の既定の置き場の
+    # 一時ディレクトリへの差し替え
     monkeypatch.setenv("ML_PATHFINDER_HOME", str(tmp_path / "home"))
     monkeypatch.setenv("ML_FATHOM_HOME", str(tmp_path / "fathom"))
+    monkeypatch.setenv(
+        "ML_CREATEARCHITECTURE_HOME", str(tmp_path / "createarchitecture")
+    )
+    monkeypatch.delenv("ML_CREATEARCHITECTURE_MODULES", raising=False)
     app = create_app(
         token=TOKEN, allowed_hosts=["testserver"], static_dir=static_dir
     )
@@ -114,6 +118,7 @@ def test_token_required(app_client: TestClient) -> None:
     assert response.status_code == 401
     assert app_client.get("/api/x").status_code == 401
     assert app_client.get("/api/data/sources").status_code == 401
+    assert app_client.get("/api/model/units").status_code == 401
 
     # 別の起動のトークンの Cookie
     app_client.cookies.set(cookie_name("other"), "other")
@@ -216,6 +221,10 @@ def test_origin_checked(client: TestClient) -> None:
     response = client.post("/api/data/samples", json={}, headers=other)
     assert response.status_code == 403
 
+    # モデルの作成・選定の段階の書き込みも別のサイトからは 403
+    response = client.post("/api/model/check", json={}, headers=other)
+    assert response.status_code == 403
+
 
 def test_host_checked(client: TestClient) -> None:
     """
@@ -237,6 +246,10 @@ def test_host_checked(client: TestClient) -> None:
     assert response.status_code == 400
     response = client.get(
         "/api/data/problems", headers={"host": "evil.example"}
+    )
+    assert response.status_code == 400
+    response = client.get(
+        "/api/model/units", headers={"host": "evil.example"}
     )
     assert response.status_code == 400
 
@@ -275,6 +288,33 @@ def test_problem_api_mounted(
     assert (problems_dir / created["id"] / "problem.yaml").is_file()
 
 
+def mounted_api(client: TestClient, prefix: str) -> FastAPI:
+    """
+    殻が経路の頭に mount した段階のアプリを取り出す関数
+
+    Parameters
+    ----------
+    client: TestClient
+        利用者 (client.app は殻のアプリ)
+    prefix: str
+        経路の頭 (例 /api/model)
+
+    Returns
+    ----------
+    api: FastAPI
+        その頭に 1 つだけ mount した段階のアプリ
+    """
+    app: FastAPI = client.app  # type: ignore[assignment]
+    mounts = [
+        route.app for route in app.routes
+        if isinstance(route, Mount) and route.path == prefix
+    ]
+    assert len(mounts) == 1 and isinstance(mounts[0], FastAPI)
+    api = mounts[0]
+
+    return api
+
+
 def test_data_api_mounted(client: TestClient, tmp_path: Path) -> None:
     """
     ML-Fathom の API が /api/data の下で動き, ML-Pathfinder と同じ問題の
@@ -308,17 +348,56 @@ def test_data_api_mounted(client: TestClient, tmp_path: Path) -> None:
     # 2 つの段階で同じ置き場と, ML-Fathom の既定 (環境変数の下) の
     # アプリの置き場
     app: FastAPI = client.app  # type: ignore[assignment]
-    mounts = [
-        route.app for route in app.routes
-        if isinstance(route, Mount) and route.path == "/api/data"
-    ]
-    assert len(mounts) == 1 and isinstance(mounts[0], FastAPI)
-    data_api = mounts[0]
+    data_api = mounted_api(client, "/api/data")
     assert data_api.state.problems_dir == app.state.problems_dir
     fathom_home = (tmp_path / "fathom").resolve()
     assert data_api.state.store.home == fathom_home
     assert client.get("/api/data/sources").status_code == 200
     assert client.get("/api/data/info").status_code == 200
+
+
+def test_model_api_mounted(client: TestClient, tmp_path: Path) -> None:
+    """
+    ML-CreateArchitecture の API が /api/model の下で動き, ML-Pathfinder と
+    同じ問題の設定の置き場を読むことを確かめる関数
+
+    Parameters
+    ----------
+    client: TestClient
+        トークン付きの利用者
+    tmp_path: Path
+        一時ディレクトリ
+
+    Returns
+    ----------
+    None
+    """
+    # 問題の設定の段階で作った問題の設定の, モデルの作成・選定の段階の
+    # 一覧での表示
+    response = client.get("/api/model/problems")
+    assert response.status_code == 200
+    assert response.json()["problems"] == []
+    response = client.post("/api/problem/problems", json={"name": "需要"})
+    assert response.status_code == 201
+    created = response.json()
+    listed = client.get("/api/model/problems").json()
+    problems_dir = tmp_path / "home" / "problems"
+    assert Path(listed["root"]) == problems_dir.resolve()
+    assert listed["error"] is None
+    assert [Path(item["path"]).parent.name for item in listed["problems"]] \
+        == [created["id"]]
+
+    # 段階の間で同じ置き場と, ML-CreateArchitecture の既定 (環境変数の
+    # 下) のアプリの置き場
+    app: FastAPI = client.app  # type: ignore[assignment]
+    model_api = mounted_api(client, "/api/model")
+    assert model_api.state.problems_dir == app.state.problems_dir
+    home = (tmp_path / "createarchitecture").resolve()
+    assert model_api.state.store.root == home / "models"
+
+    # 部品の一覧と保存したモデルの一覧
+    assert client.get("/api/model/units").status_code == 200
+    assert client.get("/api/model/models").status_code == 200
 
 
 def test_unknown_api_not_found(client: TestClient) -> None:
@@ -335,7 +414,10 @@ def test_unknown_api_not_found(client: TestClient) -> None:
     None
     """
     # 画面の HTML ではなく 404 の JSON
-    for path in ("/api", "/api/x", "/api/problem", "/api/data/items"):
+    for path in (
+        "/api", "/api/x", "/api/problem", "/api/data/items",
+        "/api/model/items"
+    ):
         response = client.get(path)
         assert response.status_code == 404
         assert response.headers["content-type"] == "application/json"
@@ -423,6 +505,10 @@ def test_without_frontend(
     # index.html の無い画面のディレクトリ
     monkeypatch.setenv("ML_PATHFINDER_HOME", str(tmp_path / "home"))
     monkeypatch.setenv("ML_FATHOM_HOME", str(tmp_path / "fathom"))
+    monkeypatch.setenv(
+        "ML_CREATEARCHITECTURE_HOME", str(tmp_path / "createarchitecture")
+    )
+    monkeypatch.delenv("ML_CREATEARCHITECTURE_MODULES", raising=False)
     app = create_app(
         token=TOKEN, allowed_hosts=["testserver"],
         static_dir=tmp_path / "empty"

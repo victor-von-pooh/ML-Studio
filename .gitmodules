@@ -4,3 +4,6 @@
 [submodule "ML-Fathom"]
 	path = ML-Fathom
 	url = https://github.com/victor-von-pooh/ML-Fathom.git
+[submodule "ML-CreateArchitecture"]
+	path = ML-CreateArchitecture
+	url = https://github.com/victor-von-pooh/ML-CreateArchitecture.git
