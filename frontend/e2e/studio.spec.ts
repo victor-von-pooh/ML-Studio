@@ -282,6 +282,66 @@ test('選んだ問題の設定を引き継いで学習・評価の段階を開�
   expect(errors).toEqual([])
 })
 
+// 学習・評価の段階で, ブラウザの戻ると進むが段階の中の移動と段階をまたぐ移動の両方で効き,
+// 作り直した段階の画面が今の経路を読むことを確かめる
+test('学習・評価の段階でブラウザの戻ると進むが段階の中と段階をまたいで効く', async ({ page }) => {
+  const errors: string[] = []
+  page.on('pageerror', (error) => errors.push(error.message))
+  page.on('console', (message) => {
+    if (message.type() === 'error') errors.push(message.text())
+  })
+
+  await page.goto('/api/auth?token=e2e-token')
+  await expect(page).toHaveURL(/\/problem$/)
+  const stages = page.getByRole('navigation', { name: '段階' })
+  const train = stages.getByRole('link', { name: '学習・評価' })
+  const projects = page.getByRole('heading', { name: 'プロジェクト', exact: true })
+  const jobs = page.getByRole('heading', { name: 'ジョブ', exact: true })
+
+  // 段階の並びで学習・評価に移り, 段階の中のリンクでジョブに移る
+  await train.click()
+  await expect(page).toHaveURL(/\/train$/)
+  await expect(projects).toBeVisible()
+  await page.getByRole('link', { name: 'ジョブ', exact: true }).click()
+  await expect(page).toHaveURL(/\/train\/jobs$/)
+  await expect(jobs).toBeVisible()
+
+  // 段階の中で戻ると /train の画面に, 進むとジョブの画面に戻る
+  await page.goBack()
+  await expect(page).toHaveURL(/\/train$/)
+  await expect(projects).toBeVisible()
+  await expect(jobs).toHaveCount(0)
+  await page.goForward()
+  await expect(page).toHaveURL(/\/train\/jobs$/)
+  await expect(jobs).toBeVisible()
+  await expect(projects).toHaveCount(0)
+
+  // 段階の並びで問題の設定に移って戻ると, 作り直した学習・評価の段階の画面が今の経路
+  // (/train/jobs) を読んで出す
+  await stages.getByRole('link', { name: '問題の設定' }).click()
+  await expect(page).toHaveURL(/\/problem$/)
+  await expect(page.getByLabel(/^問題の名前/)).toBeVisible()
+  await page.goBack()
+  await expect(page).toHaveURL(/\/train\/jobs$/)
+  await expect(jobs).toBeVisible()
+  await expect(train).toHaveAttribute('aria-current', 'step')
+
+  // 作り直した後の段階の画面でも, 段階の中の戻ると進むが効く
+  await page.goBack()
+  await expect(page).toHaveURL(/\/train$/)
+  await expect(projects).toBeVisible()
+  await page.goForward()
+  await expect(page).toHaveURL(/\/train\/jobs$/)
+  await expect(jobs).toBeVisible()
+
+  // 段階をまたいで進むと, 問題の設定の段階の画面に戻る
+  await page.goForward()
+  await expect(page).toHaveURL(/\/problem$/)
+  await expect(page.getByLabel(/^問題の名前/)).toBeVisible()
+
+  expect(errors).toEqual([])
+})
+
 // 殻で選んだ問題の設定を引き継いで推論の段階に移り, ML-Provide の画面が実験の一覧を殻の
 // 問題の設定で絞り, 殻の明暗の切り替えが段階の画面に効くことを確かめる
 test('選んだ問題の設定を引き継いで推論の段階を開く', async ({ page }) => {
