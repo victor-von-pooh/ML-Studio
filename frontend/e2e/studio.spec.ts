@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 
 // 殻を開き, 問題の設定の段階で問題を作り, プロジェクトの欄で選んで開く
-test('問題の設定を作り, プロジェクトの欄で選んで開く', async ({ page }) => {
+test('問題の設定を作り, プロジェクトの欄で選んで開く', async ({ page }, testInfo) => {
   // 画面の例外と console の誤り (React を 2 つ読んだときなど) を集める
   const errors: string[] = []
   page.on('pageerror', (error) => errors.push(error.message))
@@ -20,32 +20,35 @@ test('問題の設定を作り, プロジェクトの欄で選んで開く', asy
   const select = page.getByLabel('プロジェクト')
   await expect(select).toHaveValue('')
 
-  // 問題の設定の段階の画面で新しく作ると開き, 殻の欄にも出て選ばれる
-  await page.getByLabel(/^問題の名前/).fill('総菜の需要')
+  // 問題の設定の段階の画面で新しく作ると開き, 殻の欄にも出て選ばれる. 名前はやり直し
+  // (CI の retries) と繰り返しごとに分ける (殻の置き場は起動のときに 1 度だけ消すので,
+  // 前の回に作った同じ名前の問題の設定が欄に残るため)
+  const name = `総菜の需要 ${testInfo.repeatEachIndex}-${testInfo.retry}`
+  await page.getByLabel(/^問題の名前/).fill(name)
   await page.getByRole('button', { name: '作る', exact: true }).click()
   await expect(page).toHaveURL(/\/problem\/problems\/[^/]+$/)
-  await expect(page.getByRole('heading', { name: '総菜の需要' })).toBeVisible()
+  await expect(page.getByRole('heading', { name })).toBeVisible()
   const opened = new URL(page.url()).pathname.split('/').pop()!
-  await expect(select.getByRole('option', { name: '総菜の需要' })).toHaveCount(1)
+  await expect(select.getByRole('option', { name, exact: true })).toHaveCount(1)
   await expect(select).toHaveValue(opened)
 
   // 選びを外すと一覧に戻り, 欄で選ぶと開く
   await select.selectOption('')
   await expect(page).toHaveURL(/\/problem$/)
   await expect(page.getByRole('heading', { name: '問題の設定', exact: true })).toBeVisible()
-  await select.selectOption({ label: '総菜の需要' })
+  await select.selectOption({ label: name })
   await expect(page).toHaveURL(new RegExp(`/problem/problems/${opened}$`))
-  await expect(page.getByRole('heading', { name: '総菜の需要' })).toBeVisible()
+  await expect(page.getByRole('heading', { name })).toBeVisible()
 
   // 再読み込みでも選びを保つ
   await page.reload()
   await expect(select).toHaveValue(opened)
-  await expect(page.getByRole('heading', { name: '総菜の需要' })).toBeVisible()
+  await expect(page.getByRole('heading', { name })).toBeVisible()
 
   // 知らない頭は最初の段階に移し, 選んだ問題の設定を開く
   await page.goto('/unknown')
   await expect(page).toHaveURL(new RegExp(`/problem/problems/${opened}$`))
-  await expect(page.getByRole('heading', { name: '総菜の需要' })).toBeVisible()
+  await expect(page.getByRole('heading', { name })).toBeVisible()
 
   // 戻るで段階に合わない経路に来ても, 殻が置き換えて段階の画面を出す
   // (e2e は DOM の型を持たないので, ページの中で動かす式を文字列で渡す)
@@ -53,14 +56,14 @@ test('問題の設定を作り, プロジェクトの欄で選んで開く', asy
     "history.pushState(null, '', '/'); dispatchEvent(new PopStateEvent('popstate'))",
   )
   await expect(page).toHaveURL(new RegExp(`/problem/problems/${opened}$`))
-  await expect(page.getByRole('heading', { name: '総菜の需要' })).toBeVisible()
+  await expect(page.getByRole('heading', { name })).toBeVisible()
 
   expect(errors).toEqual([])
 })
 
 // 殻で選んだ問題の設定を引き継いでデータの分析の段階に移り, 段階の中の移動, API の呼び出し,
 // 殻の明暗の切り替えが ML-Fathom の画面に効くことを確かめる
-test('選んだ問題の設定を引き継いでデータの分析の段階を開く', async ({ page }) => {
+test('選んだ問題の設定を引き継いでデータの分析の段階を開く', async ({ page }, testInfo) => {
   const errors: string[] = []
   page.on('pageerror', (error) => errors.push(error.message))
   page.on('console', (message) => {
@@ -115,11 +118,28 @@ test('選んだ問題の設定を引き継いでデータの分析の段階を�
   const samples = page.waitForResponse(
     (response) => new URL(response.url()).pathname === '/api/data/samples',
   )
+  // (見本は登録済みの場所を登録し直さないので, やり直しと繰り返しの 2 回目からは「登録済み」と
+  // 出る. 最初の回は置き場が新しく, studio で見本を入れるのはこのテストだけで workers も 1 なので,
+  // 5 件の登録を求める (登録できたのに API が空を返す誤りを拾うため). どの回でも, 全てのデータを
+  // 出すと 5 つの見本が 1 つずつ並ぶ)
   await page.getByRole('button', { name: '見本のデータを入れる' }).click()
   expect((await samples).status()).toBe(200)
-  await expect(page.getByRole('status')).toHaveText(/見本を \d+ 件登録しました/, {
-    timeout: 30_000,
-  })
+  const first = testInfo.retry === 0 && testInfo.repeatEachIndex === 0
+  await expect(page.getByRole('status')).toHaveText(
+    first ? /^見本を 5 件登録しました/ : /^(見本を \d+ 件登録しました|見本は登録済みです)/,
+    { timeout: 30_000 },
+  )
+  await page.getByLabel(/^全てのデータを出す/).check()
+  // 見本の名前は ML-Fathom の backend/src/ml_fathom/samples.py の SAMPLES の鍵
+  for (const sample of [
+    '顧客の解約 (表)',
+    '電力の使用量 (時系列)',
+    '図形 (画像)',
+    'レビュー (文)',
+    '物体 (点群)',
+  ]) {
+    await expect(page.getByRole('link', { name: sample, exact: true })).toHaveCount(1)
+  }
 
   // 殻の明暗の切り替えが段階の画面の色に効く
   // (e2e は DOM の型を持たないので, ページの中で動かす関数を文字列で渡す)
