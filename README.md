@@ -50,7 +50,7 @@
 ### 必要なもの
 
 - [uv](https://docs.astral.sh/uv/) (Python は uv が用意する. 3.10 以上)
-- Node.js 24 以上と [pnpm](https://pnpm.io/) 11 以上 (`corepack enable` で `package.json` の版が入る)
+- Node.js 24 以上と [pnpm](https://pnpm.io/) 11 以上 (`corepack enable` で `package.json` の版が入る. `corepack enable` が使えない環境 (corepack が付かない版の Node.js や, 別の道具で入れた Node.js) では `npm install -g pnpm@11` などで入れる)
 
 ### 導入と起動
 
@@ -61,9 +61,40 @@ make setup   # submodule, Python と Node.js の依存 (外部のライブラリ
 make serve   # 画面をビルドして http://127.0.0.1:8760 で起動 (Ctrl+C で止める)
 ```
 
+初めての `make setup` は Python の依存 (PyTorch など) を取ってくるので, 時間と容量 (バックエンドの環境 `backend/.venv` で約 1 GB) がかかる.
+
 起動すると `ML-Studio を開く: http://127.0.0.1:8760/api/auth?token=...` の行が出るので, その URL をブラウザで開く (トークンは起動ごとに変わる. 環境変数 `ML_STUDIO_TOKEN` で決められる). ポートは `make serve PORT=8800` のように変えられる. 他のホストで待ち受ける場合は `ml-studio --host <ホスト> --allowed-host <接続に使う名前>` で起動する.
 
-上の帯のプロジェクトの欄で問題の設定を選ぶと, 全ての段階がその問題の設定を開く. 問題の設定の置き場は ML-Pathfinder の既定 (`~/.ml-pathfinder/`. 環境変数 `ML_PATHFINDER_HOME` で変えられる) で, 他の 4 つの段階も同じ置き場の問題の設定を読む. データの分析の段階の置き場 (登録したデータ, 前処理の手順, 書き出したデータセット) は ML-Fathom の既定 (`~/.ml-fathom/`. 環境変数 `ML_FATHOM_HOME` で変えられる), モデルの作成・選定の段階の置き場 (保存したモデルの定義) は ML-CreateArchitecture の既定 (`~/.ml-createarchitecture/`. 環境変数 `ML_CREATEARCHITECTURE_HOME` で変えられる), 学習・評価の段階の置き場 (登録した学習のプロジェクト, 学習のジョブの記録) は ML-Dashboard の既定 (`~/.ml-dashboard/`. 環境変数 `ML_DASHBOARD_HOME` で変えられる), 推論の段階の置き場 (登録した推論の一式, 推論の結果) は ML-Provide の既定 (`~/.ml-provide/`. 環境変数 `ML_PROVIDE_HOME` で変えられる). どれも各アプリを単独で起動したときと同じものを開く. ただしモデルの作成・選定の段階では, 外部のライブラリの部品は既定では torchvision のものだけが使える. 他 (huggingface, timm など) を使う場合は, `make setup EXTRAS="timm einops"` のように ML-CreateArchitecture の extra を空白で区切って選ぶ (選べる名前は `make extras-list` で出る. `make setup` は選んだ extra だけにし直し, `make extras EXTRAS="timm"` は前に足した extra を残して足す. 入っている依存の版は変えない. Linux では torchaudio の部品は足しても使えない. `make setup` を `EXTRAS` 無しで実行すると既定に戻る). 学習・評価の段階の学習は, 登録した学習のプロジェクトの仮想環境 (プロジェクトか, それを含むリポジトリの `.venv` か `venv`. 登録するときに Python を選べ, 無ければ殻の Python) で別のプロセスとして動く.
+上の帯のプロジェクトの欄で問題の設定を選ぶと, 全ての段階がその問題の設定を開く.
+
+#### 置き場
+
+各段階は, 各アプリを単独で起動したときと同じ置き場を開く. 環境変数を設定すればその場所, 無ければホームの下の既定の場所. 問題の設定は問題の設定の段階の置き場に置き, 他の 4 つの段階も同じ置き場の問題の設定を読む.
+
+| 段階 | アプリ | 既定の場所 | 環境変数 | 置くもの |
+| --- | --- | --- | --- | --- |
+| 問題の設定 | ML-Pathfinder | `~/.ml-pathfinder/` | `ML_PATHFINDER_HOME` | 問題の設定 |
+| データの分析 | ML-Fathom | `~/.ml-fathom/` | `ML_FATHOM_HOME` | 登録したデータ, 前処理の手順, 書き出したデータセット |
+| モデルの作成・選定 | ML-CreateArchitecture | `~/.ml-createarchitecture/` | `ML_CREATEARCHITECTURE_HOME` | 保存したモデルの定義 |
+| 学習・評価 | ML-Dashboard | `~/.ml-dashboard/` | `ML_DASHBOARD_HOME` | 登録した学習のプロジェクト, 学習のジョブの記録 |
+| 推論 | ML-Provide | `~/.ml-provide/` | `ML_PROVIDE_HOME` | 登録した推論の一式, 推論の結果 |
+
+普段の置き場を使わずに試す場合は, 5 つの環境変数を別の場所にして起動する (例は[操作ガイド](docs/GUIDE.md#1-起動する)の「置き場」).
+
+#### 外部のライブラリの部品
+
+モデルの作成・選定の段階の部品の一覧には, 外部のライブラリ (torchvision, huggingface, timm など) の部品が全て載る. 既定で使えるのは torchvision の部品だけで, 他は一覧に「使えない」と理由付きで出て, 置けない. 他を使う場合は, `make setup EXTRAS="timm einops"` のように ML-CreateArchitecture の extra を空白で区切って選ぶ.
+
+- 選べる名前は `make extras-list` で出る. 殻では `project` を書かない (一覧の理由に出る `make setup EXTRAS="project …"` は ML-CreateArchitecture を単独で起動したときの入れ方)
+- `make setup` は選んだ extra だけにし直し, `make extras EXTRAS="timm"` は前に足した extra を残して足す. どちらも入っている依存の版は変えない
+- `make setup` を `EXTRAS` 無しで実行すると既定に戻る
+- Linux では torchaudio の部品は足しても使えない
+
+#### 学習の環境
+
+学習・評価の段階の学習は, 登録した学習のプロジェクトの仮想環境 (プロジェクトか, それを含むリポジトリの `.venv` か `venv`. 登録するときに Python を選べ, 無ければ殻の Python) で別のプロセスとして動く.
+
+#### 自作の部品と手順
 
 自作の部品と手順は, 各アプリの起動の設定の環境変数で読み込む (モデルの作成・選定の段階は `ML_CREATEARCHITECTURE_MODULES`, 推論の段階は部品を `ML_PROVIDE_UNITS`, 繰り返しの手順を `ML_PROVIDE_PROCEDURES`. どれもモジュールの名前を `,` で区切る). 自作の部品は 2 つの段階で 1 つの登録簿を共有するので, 同じモジュールを両方に書いてよい. 読めないモジュールがあると, 殻は `起動できません: ...` の理由を出して終わる.
 
