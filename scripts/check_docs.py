@@ -9,9 +9,9 @@ import subprocess
 import sys
 from pathlib import Path
 
-# リポジトリの名前らしい語 (ML- の後が大文字か, ML_ の後が小文字. 環境変数
-# のような ML_ の後が大文字の語は除く)
-REPO_NAME = re.compile(r"\bML(?:-[A-Z][A-Za-z]+|_[a-z]+)\b")
+# リポジトリの名前らしい語 (大文字小文字と - と _ の違いを問わない. 後ろに
+# _ が続く環境変数のような語は除く). 比べるときは名前の形をそろえる
+REPO_NAME = re.compile(r"\bml[-_][a-z]+\b(?!_)", re.IGNORECASE)
 
 # 手元の環境の絶対パス (URL の中の /home/ などは対象外)
 LOCAL_PATH = re.compile(
@@ -19,9 +19,30 @@ LOCAL_PATH = re.compile(
     r"|[A-Z]:\\Users"
 )
 
-# TODO.md の節の並びと, 項目が持つ行の頭
+# TODO.md の節の並びと, 項目が持つ行の頭 (条件待ちの項目は別の形)
 TODO_SECTIONS = ("## 優先度 高", "## 優先度 中", "## 優先度 低", "## 条件待ち")
 ITEM_FIELDS = ("- 何を:", "- なぜ:", "- 終わりの条件:", "- つながり:")
+WAITING_FIELDS = ("- 何を:", "- 待っているもの:")
+
+
+def name_key(name: str) -> str:
+    """
+    リポジトリの名前を, 大文字小文字と - と _ の違いを除いた形にする関数
+
+    Parameters
+    ----------
+    name: str
+        名前
+
+    Returns
+    ----------
+    key: str
+        小文字で, - と _ を除いた形
+    """
+    # 小文字にして区切りを除く
+    key = name.lower().replace("-", "").replace("_", "")
+
+    return key
 
 
 def allowed_repos(root: Path) -> set[str]:
@@ -36,7 +57,7 @@ def allowed_repos(root: Path) -> set[str]:
     Returns
     ----------
     names: set[str]
-        一覧のリポジトリの名前
+        一覧のリポジトリの名前 (name_key の形)
 
     Raises
     ----------
@@ -48,7 +69,7 @@ def allowed_repos(root: Path) -> set[str]:
     found = re.search(r"\(今は ([^)]*)\)", text)
     if found is None:
         raise ValueError("CLAUDE.md にリポジトリの一覧がありません")
-    names = {name.strip() for name in found.group(1).split(",")}
+    names = {name_key(name.strip()) for name in found.group(1).split(",")}
 
     return names
 
@@ -86,7 +107,7 @@ def text_errors(root: Path, names: set[str]) -> list[str]:
     root: Path
         リポジトリのルート
     names: set[str]
-        触れてよいリポジトリの名前
+        触れてよいリポジトリの名前 (name_key の形)
 
     Returns
     ----------
@@ -103,7 +124,7 @@ def text_errors(root: Path, names: set[str]) -> list[str]:
         place = path.relative_to(root)
         for number, line in enumerate(lines, 1):
             for word in REPO_NAME.findall(line):
-                if word not in names:
+                if name_key(word) not in names:
                     errors.append(
                         f"{place}:{number}: 一覧に無いリポジトリ {word}"
                     )
@@ -139,7 +160,7 @@ def todo_errors(root: Path) -> list[str]:
     if errors:
         return errors
     if places != sorted(places):
-        errors.append("TODO.md: 節の並びが 高, 中, 低, 条件待ち でありません")
+        errors.append("TODO.md: 節の並びが 高, 中, 低, 条件待ち ではありません")
 
     # 項目ごとの 4 つの行と, 節ごとの項目の数
     counts = dict.fromkeys(TODO_SECTIONS, 0)
@@ -149,7 +170,9 @@ def todo_errors(root: Path) -> list[str]:
     for line in [*lines, "### (終わり)"]:
         if line.startswith("### ") or line in TODO_SECTIONS:
             if item is not None:
-                missing = [f for f in ITEM_FIELDS if f not in fields]
+                need = (WAITING_FIELDS if section == TODO_SECTIONS[3]
+                        else ITEM_FIELDS)
+                missing = [f for f in need if f not in fields]
                 if missing:
                     errors.append(
                         f"TODO.md: 項目「{item}」に "
@@ -162,7 +185,8 @@ def todo_errors(root: Path) -> list[str]:
                 item = line[4:]
                 counts[section] += 1
         elif item is not None:
-            fields |= {f for f in ITEM_FIELDS if line.startswith(f)}
+            fields |= {f for f in (*ITEM_FIELDS, *WAITING_FIELDS)
+                       if line.startswith(f)}
     if sum(counts.values()) > 0 and (
         counts[TODO_SECTIONS[0]] == 0 or counts[TODO_SECTIONS[1]] == 0
     ) and sum(counts[name] for name in TODO_SECTIONS[:3]) > 1:
