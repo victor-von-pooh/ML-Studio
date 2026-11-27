@@ -445,18 +445,40 @@ test('段階の画面を読めないときは理由を出し, 再読み込みで
 })
 
 // モデルの作成・選定の段階で, 殻の上の帯に focus があるときのキーが段階の中身を変えないこと
-// (R9) と, 書きかけのまま段階を移って戻ると下書きから戻せること (R10) を確かめる
+// (R9) と, 書きかけのまま段階を移って戻るか殻の欄でプロジェクトを替えて戻ると下書きから
+// 戻せること (R10) を確かめる
 test('殻の帯のキーで段階の中身を変えず, 書きかけを下書きから戻せる', async ({ page }) => {
   const errors: string[] = []
   page.on('pageerror', (error) => errors.push(error.message))
-  // この流れでは確かめの窓は出ない (下書きを開くときに今の変更が無い). 出たら誤りとして断る
+  // 確かめの窓は, 書きかけのまま読み込み直すときの離れる前の確かめだけが出る (下書きを
+  // 開くときは今の変更が無い). 他が出たら誤りとして断る
+  let leaving = false
   page.on('dialog', (dialog) => {
+    if (leaving && dialog.type() === 'beforeunload') {
+      void dialog.accept()
+      return
+    }
     errors.push(`想定しない確かめ: ${dialog.message()}`)
     void dialog.dismiss()
   })
 
+  // 殻の欄で替える 2 つの問題の設定を作り, 後で替える先から作って, 書きかけの元を選ぶ
   await page.goto('/api/auth?token=e2e-token')
   await expect(page).toHaveURL(/\/problem$/)
+  const select = page.getByLabel('プロジェクト', { exact: true })
+  const created: string[] = []
+  for (const name of ['替える先の需要', '書きかけの需要']) {
+    await page.getByLabel(/^問題の名前/).fill(name)
+    await page.getByRole('button', { name: '作る', exact: true }).click()
+    await expect(page).toHaveURL(/\/problem\/problems\/[^/]+$/)
+    await expect(page.getByRole('heading', { name })).toBeVisible()
+    created.push(new URL(page.url()).pathname.split('/').pop()!)
+    await select.selectOption('')
+    await expect(page).toHaveURL(/\/problem$/)
+  }
+  const [other, own] = created
+  await select.selectOption(own)
+  await expect(page).toHaveURL(new RegExp(`/problem/problems/${own}$`))
   const stages = page.getByRole('navigation', { name: '段階' })
   await stages.getByRole('link', { name: 'モデルの作成・選定' }).click()
   await expect(page).toHaveURL(/\/model$/)
@@ -497,7 +519,7 @@ test('殻の帯のキーで段階の中身を変えず, 書きかけを下書き
 
   // R10: 待たずに段階を移って戻ると, 書きかけを下書きから戻せる
   await stages.getByRole('link', { name: '問題の設定' }).click()
-  await expect(page).toHaveURL(/\/problem$/)
+  await expect(page).toHaveURL(new RegExp(`/problem/problems/${own}$`))
   await stages.getByRole('link', { name: 'モデルの作成・選定' }).click()
   await expect(page).toHaveURL(/\/model$/)
   await expect(page.locator('[data-id="x"]')).toBeVisible()
@@ -506,6 +528,29 @@ test('殻の帯のキーで段階の中身を変えず, 書きかけを下書き
   await expect(draft).toBeVisible()
   await draft.getByRole('button', { name: '下書きを開く' }).click()
   await expect(relu).toBeVisible()
+  await expect(page.getByRole('button', { name: '保存 *' })).toBeVisible()
+
+  // R10: 書きかけのまま殻の欄でプロジェクトを替えると, 部品は外れず待たずに下書きに書く.
+  // 保存する名前を打った直後に替えて戻し, 少し待って書く分を待たずに読み込み直しても
+  // (待っている書き込みは読み込み直しで消える), 打った名前ごと下書きから戻せる
+  const saveName = page.getByLabel('保存する名前')
+  await saveName.fill('r10_project')
+  await select.selectOption(other)
+  await expect(select).toHaveValue(other)
+  await expect(page).toHaveURL(/\/model$/)
+  await expect(relu).toBeVisible()
+  await select.selectOption(own)
+  await expect(select).toHaveValue(own)
+  leaving = true
+  await page.reload()
+  leaving = false
+  await expect(select).toHaveValue(own)
+  await expect(page.locator('[data-id="x"]')).toBeVisible()
+  await expect(relu).toHaveCount(0)
+  await expect(draft).toContainText('r10_project')
+  await draft.getByRole('button', { name: '下書きを開く' }).click()
+  await expect(relu).toBeVisible()
+  await expect(saveName).toHaveValue('r10_project')
   await expect(page.getByRole('button', { name: '保存 *' })).toBeVisible()
 
   expect(errors).toEqual([])
