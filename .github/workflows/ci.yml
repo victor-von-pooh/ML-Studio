@@ -19,7 +19,8 @@ jobs:
           python-version: "3.13"
       - run: python scripts/check_docs.py
 
-  # 殻のバックエンド (ML-Pathfinder と ML-Quest を submodule から入れる)
+  # 殻のバックエンド (ML-Pathfinder, ML-Fathom と, それらが submodule で持つ
+  # ML-EDA と ML-Quest を submodule から入れる)
   backend:
     runs-on: ubuntu-latest
     defaults:
@@ -35,7 +36,7 @@ jobs:
       - run: uv run mypy src tests
       - run: uv run pytest -q
 
-  # 殻の画面 (pnpm workspace に ML-Pathfinder の画面のパッケージを加える)
+  # 殻の画面 (pnpm workspace に ML-Pathfinder と ML-Fathom の画面のパッケージを加える)
   frontend:
     runs-on: ubuntu-latest
     defaults:
@@ -60,7 +61,8 @@ jobs:
       - run: pnpm test
       - run: pnpm build
 
-  # 殻を起動し, ブラウザで問題の設定を作ってプロジェクトの欄で選んで開く
+  # 殻を起動し, ブラウザで問題の設定を作ってプロジェクトの欄で選んで開き,
+  # データの分析の段階に移る
   e2e:
     runs-on: ubuntu-latest
     steps:

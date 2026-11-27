@@ -3,24 +3,28 @@ import type { StageAppProps } from 'ml-pathfinder-frontend'
 
 import { Shell } from './Shell'
 
-/** 描いた根の部品の props と, 作った回数 */
+/** 最後に描いた根の部品の props と段階のアプリ, 作った回数 */
 const stage = vi.hoisted(() => ({
   props: null as StageAppProps | null,
+  app: null as string | null,
   mounts: 0,
 }))
 
-// 根の部品の代わりに, 受け取った props を覚えて出す部品
-vi.mock('ml-pathfinder-frontend', async () => {
+/** 根の部品の代わりに, 受け取った props を覚えて出す部品を作る */
+const mockStageApp = vi.hoisted(() => async (app: string) => {
   const { useEffect } = await import('react')
   return {
     StageApp: (props: StageAppProps) => {
       stage.props = props
+      stage.app = app
       useEffect(() => {
         stage.mounts += 1
       }, [])
       return (
         <div>
-          <p>project: {props.project ?? '(none)'}</p>
+          <p>
+            {app} project: {props.project ?? '(none)'}
+          </p>
           <button type="button" onClick={() => props.onProjectChange('p2')}>
             部品の中で開く
           </button>
@@ -32,6 +36,9 @@ vi.mock('ml-pathfinder-frontend', async () => {
     },
   }
 })
+
+vi.mock('ml-pathfinder-frontend', () => mockStageApp('ML-Pathfinder'))
+vi.mock('ml-fathom-frontend', () => mockStageApp('ML-Fathom'))
 
 /** 一覧の API の応答 (呼ばれるたびに次の一覧を返す) */
 function mockProblems(...lists: { id: string; name: string }[][]) {
@@ -45,6 +52,7 @@ function mockProblems(...lists: { id: string; name: string }[][]) {
 
 beforeEach(() => {
   stage.props = null
+  stage.app = null
   stage.mounts = 0
   localStorage.clear()
   document.documentElement.classList.remove('dark')
@@ -77,13 +85,57 @@ describe('殻の画面', () => {
     const nav = screen.getByRole('navigation', { name: '段階' })
     const current = screen.getByRole('link', { name: '問題の設定' })
     expect(current).toHaveAttribute('aria-current', 'step')
-    expect(nav).toHaveTextContent('データの分析')
+    expect(screen.getByRole('link', { name: 'データの分析' })).toHaveAttribute('href', '/data')
     expect(nav).toHaveTextContent('推論')
     // 押せない段階はリンクでなく, まだ載っていないと読み上げにも出す
-    expect(screen.queryByRole('link', { name: /データの分析/ })).toBeNull()
-    const pending = screen.getByText('データの分析', { exact: false })
-    expect(pending).toHaveTextContent('データの分析 (まだ載っていないので開けない)')
-    expect(pending).toHaveAttribute('title', 'ML-Fathom はまだ載っていない')
+    expect(screen.queryByRole('link', { name: /モデルの作成・選定/ })).toBeNull()
+    const pending = screen.getByText('モデルの作成・選定', { exact: false })
+    expect(pending).toHaveTextContent('モデルの作成・選定 (まだ載っていないので開けない)')
+    expect(pending).toHaveAttribute('title', 'ML-CreateArchitecture はまだ載っていない')
+  })
+
+  it('データの分析を押すと, 選んだプロジェクトを引き継いで ML-Fathom の根の部品を出す', async () => {
+    localStorage.setItem('studio-project', 'p1')
+    mockProblems([{ id: 'p1', name: '需要' }])
+    render(<Shell />)
+    expect(stage.app).toBe('ML-Pathfinder')
+    const length = window.history.length
+    fireEvent.click(screen.getByRole('link', { name: 'データの分析' }))
+    expect(window.location.pathname).toBe('/data')
+    expect(window.history.length).toBe(length + 1)
+    expect(screen.getByRole('link', { name: 'データの分析' })).toHaveAttribute(
+      'aria-current',
+      'step',
+    )
+    expect(stage.app).toBe('ML-Fathom')
+    expect(stage.props).toMatchObject({
+      basename: '/data',
+      apiBase: '/api/data',
+      project: 'p1',
+      embedded: true,
+    })
+
+    // 部品の onProjectChange で殻の選びを替える
+    await screen.findByRole('option', { name: '需要' })
+    fireEvent.click(screen.getByRole('button', { name: '部品の中で開く' }))
+    expect(stage.props?.project).toBe('p2')
+    expect(localStorage.getItem('studio-project')).toBe('p2')
+
+    // 戻ると問題の設定の段階を作り直す
+    act(() => {
+      window.history.back()
+    })
+    await waitFor(() => expect(stage.app).toBe('ML-Pathfinder'))
+    expect(window.location.pathname).toBe('/problem')
+  })
+
+  it('/data で開くと, データの分析の段階から始める', () => {
+    mockProblems([])
+    window.history.replaceState(null, '', '/data/sources/s1')
+    render(<Shell />)
+    expect(window.location.pathname).toBe('/data/sources/s1')
+    expect(stage.app).toBe('ML-Fathom')
+    expect(stage.props?.basename).toBe('/data')
   })
 
   it('プロジェクトの欄で選ぶと部品に渡し, localStorage に残す', async () => {

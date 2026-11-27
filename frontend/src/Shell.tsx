@@ -1,5 +1,6 @@
 import { Moon, Sun, Workflow } from 'lucide-react'
-import { StageApp } from 'ml-pathfinder-frontend'
+import { StageApp as DataStageApp } from 'ml-fathom-frontend'
+import { StageApp as ProblemStageApp } from 'ml-pathfinder-frontend'
 import type { ChangeEvent, MouseEvent } from 'react'
 
 import { useStageLocation } from './lib/location'
@@ -147,10 +148,21 @@ export function Shell() {
       </header>
       <div id="stage" tabIndex={-1} className="min-h-0 flex-1 outline-none">
         {location.stage === 'problem' && (
-          <StageApp
+          <ProblemStageApp
             key={location.key}
             basename={stageBase('problem')}
             apiBase={stageApiBase('problem')}
+            project={project}
+            onProjectChange={selectProject}
+            onProjectsChange={projects.reload}
+            embedded
+          />
+        )}
+        {location.stage === 'data' && (
+          <DataStageApp
+            key={location.key}
+            basename={stageBase('data')}
+            apiBase={stageApiBase('data')}
             project={project}
             onProjectChange={selectProject}
             onProjectsChange={projects.reload}

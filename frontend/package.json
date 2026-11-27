@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "lucide-react": "^1.72.0",
+    "ml-fathom-frontend": "workspace:*",
     "ml-pathfinder-frontend": "workspace:*",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"

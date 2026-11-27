@@ -9,14 +9,18 @@ describe('段階の選び方', () => {
     expect(stageFromPath('/unknown')).toBeNull()
     // 頭の一部だけが合うものは選ばない
     expect(stageFromPath('/problems')).toBeNull()
+    expect(stageFromPath('/data')).toBe('data')
+    expect(stageFromPath('/data/sources/abc')).toBe('data')
     // まだ載っていない段階は選ばない
-    expect(stageFromPath('/data')).toBeNull()
+    expect(stageFromPath('/model')).toBeNull()
   })
 
   it('5 つの段階を決まった順で並べ, 頭を段階の鍵から作る', () => {
     expect(STAGES.map((stage) => stage.key)).toEqual(['problem', 'data', 'model', 'train', 'infer'])
     expect(stageBase('problem')).toBe('/problem')
     expect(stageApiBase('problem')).toBe('/api/problem')
+    expect(stageBase('data')).toBe('/data')
+    expect(stageApiBase('data')).toBe('/api/data')
   })
 
   it('段階に合わない経路は最初の段階の頭に置き換える', () => {

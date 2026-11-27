@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from starlette.routing import Mount
 
 from ml_studio.app import cookie_name, create_app, get_token
 from ml_studio.cli import allowed_hosts
@@ -61,8 +62,10 @@ def app_client(
     client: TestClient
         トークンを持たない利用者
     """
-    # ML-Pathfinder の既定の置き場の一時ディレクトリへの差し替え
+    # ML-Pathfinder と ML-Fathom の既定の置き場の一時ディレクトリへの
+    # 差し替え
     monkeypatch.setenv("ML_PATHFINDER_HOME", str(tmp_path / "home"))
+    monkeypatch.setenv("ML_FATHOM_HOME", str(tmp_path / "fathom"))
     app = create_app(
         token=TOKEN, allowed_hosts=["testserver"], static_dir=static_dir
     )
@@ -110,6 +113,7 @@ def test_token_required(app_client: TestClient) -> None:
     response = app_client.get("/api/problem/problems", headers=wrong)
     assert response.status_code == 401
     assert app_client.get("/api/x").status_code == 401
+    assert app_client.get("/api/data/sources").status_code == 401
 
     # 別の起動のトークンの Cookie
     app_client.cookies.set(cookie_name("other"), "other")
@@ -263,6 +267,52 @@ def test_problem_api_mounted(
     assert (problems_dir / created["id"] / "problem.yaml").is_file()
 
 
+def test_data_api_mounted(client: TestClient, tmp_path: Path) -> None:
+    """
+    ML-Fathom の API が /api/data の下で動き, ML-Pathfinder と同じ問題の
+    設定の置き場を読むことを確かめる関数
+
+    Parameters
+    ----------
+    client: TestClient
+        トークン付きの利用者
+    tmp_path: Path
+        一時ディレクトリ
+
+    Returns
+    ----------
+    None
+    """
+    # 問題の設定の段階で作った問題の設定の, データの分析の段階の一覧での表示
+    response = client.get("/api/data/problems")
+    assert response.status_code == 200
+    assert response.json()["problems"] == []
+    response = client.post("/api/problem/problems", json={"name": "需要"})
+    assert response.status_code == 201
+    created = response.json()
+    listed = client.get("/api/data/problems").json()
+    problems_dir = tmp_path / "home" / "problems"
+    assert Path(listed["root"]) == problems_dir.resolve()
+    assert listed["error"] is None
+    assert [Path(item["path"]).parent.name for item in listed["problems"]] \
+        == [created["id"]]
+
+    # 2 つの段階で同じ置き場と, ML-Fathom の既定 (環境変数の下) の
+    # アプリの置き場
+    app: FastAPI = client.app  # type: ignore[assignment]
+    mounts = [
+        route.app for route in app.routes
+        if isinstance(route, Mount) and route.path == "/api/data"
+    ]
+    assert len(mounts) == 1 and isinstance(mounts[0], FastAPI)
+    data_api = mounts[0]
+    assert data_api.state.problems_dir == app.state.problems_dir
+    fathom_home = (tmp_path / "fathom").resolve()
+    assert data_api.state.store.home == fathom_home
+    assert client.get("/api/data/sources").status_code == 200
+    assert client.get("/api/data/info").status_code == 200
+
+
 def test_unknown_api_not_found(client: TestClient) -> None:
     """
     どの段階にも合わない /api の下の経路が 404 になることを確かめる関数
@@ -364,6 +414,7 @@ def test_without_frontend(
     """
     # index.html の無い画面のディレクトリ
     monkeypatch.setenv("ML_PATHFINDER_HOME", str(tmp_path / "home"))
+    monkeypatch.setenv("ML_FATHOM_HOME", str(tmp_path / "fathom"))
     app = create_app(
         token=TOKEN, allowed_hosts=["testserver"],
         static_dir=tmp_path / "empty"

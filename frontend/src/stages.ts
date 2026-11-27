@@ -16,7 +16,7 @@ export interface Stage {
 /** 段階の並び (問題の設定 → データの分析 → モデルの作成・選定 → 学習・評価 → 推論) */
 export const STAGES: readonly Stage[] = [
   { key: 'problem', label: '問題の設定', app: 'ML-Pathfinder', available: true },
-  { key: 'data', label: 'データの分析', app: 'ML-Fathom', available: false },
+  { key: 'data', label: 'データの分析', app: 'ML-Fathom', available: true },
   { key: 'model', label: 'モデルの作成・選定', app: 'ML-CreateArchitecture', available: false },
   { key: 'train', label: '学習・評価', app: 'ML-Dashboard', available: false },
   { key: 'infer', label: '推論', app: 'ML-Provide', available: false },
