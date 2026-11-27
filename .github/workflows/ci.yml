@@ -79,7 +79,8 @@ jobs:
       - run: pnpm build
 
   # 殻を起動し, ブラウザで問題の設定を作ってプロジェクトの欄で選んで開き,
-  # データの分析, モデルの作成・選定, 学習・評価, 推論の段階に移る
+  # データの分析, モデルの作成・選定, 学習・評価, 推論の段階に移る. 殻の帯のキー (R9) と
+  # 段階を移ったときの下書き (R10) も確かめる
   e2e:
     runs-on: ubuntu-latest
     steps:
@@ -116,10 +117,55 @@ jobs:
       - if: steps.playwright-cache.outputs.cache-hit == 'true'
         run: pnpm exec playwright install-deps chromium
         working-directory: frontend
-      - run: pnpm e2e
+      - run: pnpm e2e studio.spec.ts
         working-directory: frontend
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:
           name: playwright-report
+          path: frontend/playwright-report
+
+  # 小さな見本で 5 つの段階を画面で通す (学習を含むので別のジョブにする)
+  journey:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+      - uses: astral-sh/setup-uv@v6
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: frontend/package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - run: uv sync --locked --python 3.13
+        working-directory: backend
+      - run: pnpm install --frozen-lockfile
+        working-directory: frontend
+      - run: pnpm build
+        working-directory: frontend
+      # Playwright のブラウザは版ごとにキャッシュし, 当たった場合は OS の依存だけを入れる
+      - id: playwright-version
+        run: echo "version=$(pnpm exec playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+        working-directory: frontend
+      - id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}
+      - if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: pnpm exec playwright install --with-deps chromium
+        working-directory: frontend
+      - if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: pnpm exec playwright install-deps chromium
+        working-directory: frontend
+      - run: pnpm e2e journey.spec.ts
+        working-directory: frontend
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report-journey
           path: frontend/playwright-report

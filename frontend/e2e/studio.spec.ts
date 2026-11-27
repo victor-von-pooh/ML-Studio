@@ -443,3 +443,58 @@ test('段階の画面を読めないときは理由を出し, 再読み込みで
   await expect(page.getByRole('heading', { name: 'データ', exact: true })).toBeVisible()
   await expect(page.getByRole('alert')).toHaveCount(0)
 })
+
+// モデルの作成・選定の段階で, 殻の上の帯に focus があるときのキーが段階の中身を変えないこと
+// (R9) と, 書きかけのまま段階を移って戻ると下書きから戻せること (R10) を確かめる
+test('殻の帯のキーで段階の中身を変えず, 書きかけを下書きから戻せる', async ({ page }) => {
+  const errors: string[] = []
+  page.on('pageerror', (error) => errors.push(error.message))
+  page.on('dialog', (dialog) => void dialog.accept())
+
+  await page.goto('/api/auth?token=e2e-token')
+  await expect(page).toHaveURL(/\/problem$/)
+  const stages = page.getByRole('navigation', { name: '段階' })
+  await stages.getByRole('link', { name: 'モデルの作成・選定' }).click()
+  await expect(page).toHaveURL(/\/model$/)
+
+  // x → relu1 を置いて選ぶ (書きかけになる)
+  await page.locator('[data-id="x"]').click()
+  await page.getByPlaceholder('部品を探す').fill('nn.ReLU')
+  await page.getByPlaceholder('部品を探す').press('Enter')
+  const relu = page.locator('[data-id="relu1"]')
+  await expect(relu).toBeVisible()
+  await expect(page.getByRole('button', { name: '保存 *' })).toBeVisible()
+  await relu.click()
+
+  // R9: 殻の帯のボタンに focus を置いて消すと元に戻すを押しても, 中身は変わらない
+  const theme = page.getByRole('button', { name: /表示にする$/ })
+  await theme.focus()
+  await page.keyboard.press('Delete')
+  await page.keyboard.press('Backspace')
+  await page.keyboard.press('ControlOrMeta+z')
+  await expect(theme).toBeFocused()
+  await expect(relu).toHaveCount(1)
+  await expect(page.locator('.react-flow__edge')).toHaveCount(1)
+
+  // 対照: 段階の中に focus を戻すと, 同じキーで消え, 元に戻すで戻る
+  await relu.click()
+  await page.keyboard.press('Delete')
+  await expect(relu).toHaveCount(0)
+  await page.keyboard.press('ControlOrMeta+z')
+  await expect(relu).toBeVisible()
+
+  // R10: 待たずに段階を移って戻ると, 書きかけを下書きから戻せる
+  await stages.getByRole('link', { name: '問題の設定' }).click()
+  await expect(page).toHaveURL(/\/problem$/)
+  await stages.getByRole('link', { name: 'モデルの作成・選定' }).click()
+  await expect(page).toHaveURL(/\/model$/)
+  await expect(page.locator('[data-id="x"]')).toBeVisible()
+  await expect(relu).toHaveCount(0)
+  const draft = page.getByRole('region', { name: '保存していない定義の下書き' })
+  await expect(draft).toBeVisible()
+  await draft.getByRole('button', { name: '下書きを開く' }).click()
+  await expect(relu).toBeVisible()
+  await expect(page.getByRole('button', { name: '保存 *' })).toBeVisible()
+
+  expect(errors).toEqual([])
+})
