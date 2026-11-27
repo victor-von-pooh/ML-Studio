@@ -85,7 +85,7 @@ make serve   # 画面をビルドして http://127.0.0.1:8760 で起動 (Ctrl+C 
 
 モデルの作成・選定の段階では, 外部のライブラリのうち既定で殻の環境に入っているのは torchvision だけなので, 使える外部のライブラリの部品はおおむね torchvision のものに限る. 入っていないライブラリ (huggingface, timm など) は, よく使う部品だけが部品の一覧に薄く載り, 置けず, 理由 (そのライブラリが入っていないことと入れ方) が出る. ライブラリを入れると, そのライブラリの部品が全て一覧に載る. 他のライブラリの部品を使う場合は, `make setup EXTRAS="timm einops"` のように ML-CreateArchitecture の extra を空白で区切って選ぶ.
 
-- 選べる名前は `make extras-list` で出る. 殻では `project` を書かない (一覧の理由に出る `make setup EXTRAS="project …"` は ML-CreateArchitecture を単独で起動したときの入れ方)
+- 選べる名前は `make extras-list` で出る. `project` は殻に既に入っているので, 書いても書かなくてもよい (一覧の理由に出る ML-CreateArchitecture を単独で起動したときの入れ方 `make setup EXTRAS="project …"` をそのまま使える)
 - `make setup` は選んだ extra だけにし直し, `make extras EXTRAS="timm"` は前に足した extra を残して足す. どちらも入っている依存の版は変えない
 - `make setup` を `EXTRAS` 無しで実行すると既定に戻る
 - Linux では torchaudio の部品は足しても使えない

@@ -16,6 +16,12 @@ comma := ,
 empty :=
 space := $(empty) $(empty)
 
+# 殻が既定で入れる extra と, EXTRAS からそれを除いた, 入れ直す extra
+# (project は ML-CreateArchitecture が出す単独の起動での入れ方に入るので,
+# 書いても誤りにせず入れ直さない)
+DEFAULT_EXTRA := project
+ADDED_EXTRAS = $(strip $(filter-out $(DEFAULT_EXTRA),$(EXTRAS)))
+
 .PHONY: setup extras extras-list dev dev-backend dev-frontend build serve check
 
 # 依存のインストール (submodule の中の submodule も取り出す. EXTRAS が
@@ -30,17 +36,22 @@ endif
 
 # 殻の環境に ML-CreateArchitecture の extra (ML-ModelControl の同じ名前の
 # extra) を足す. 名前は ML-CreateArchitecture と ML-ModelControl の両方の
-# extra (project を除く) と確かめ (scripts/check_extras.py. 殻の環境の
-# Python で, 環境が無ければ作らずに止める), 入っているライブラリは
-# backend/uv.lock の版のまま (制約) にする. 制約は 1 度ファイルに書き, 書けた
+# extra (project は既定で入っているので受けて入れ直さない) と確かめ
+# (scripts/check_extras.py. 殻の環境の Python で, 環境が無ければ作らずに
+# 止める), 入っているライブラリは backend/uv.lock の版のまま (制約) にする. 制約は 1 度ファイルに書き, 書けた
 # 場合だけ入れる (パイプでは書けなくても制約なしで入れてしまうため).
 # 殻の pyproject.toml の上書きは ml-modelcontrol を extra 無しに置き換える
 # ので, その設定を読まずに (--no-config) 入れる. 前に足した extra は残し,
-# uv sync (make setup) で既定に戻る
+# uv sync (make setup) で既定に戻る. project を除いて残りが無ければ何も
+# 入れない
 extras:
 	@test -x backend/.venv/bin/python || { echo "殻の環境がありません. 先に make setup を実行してください"; exit 1; }
 	cd backend && .venv/bin/python ../scripts/check_extras.py $(EXTRAS)
-	cd backend && uv export -q --frozen --no-hashes --no-emit-local --no-header --no-annotate -o .venv/extras-constraints.txt && uv pip install --no-config --python .venv --constraints .venv/extras-constraints.txt -e "../ML-CreateArchitecture/ML-ModelControl[$(subst $(space),$(comma),$(strip $(EXTRAS)))]"
+ifeq ($(ADDED_EXTRAS),)
+	@echo "$(DEFAULT_EXTRA) は既に入っているので, 足す extra はありません"
+else
+	cd backend && uv export -q --frozen --no-hashes --no-emit-local --no-header --no-annotate -o .venv/extras-constraints.txt && uv pip install --no-config --python .venv --constraints .venv/extras-constraints.txt -e "../ML-CreateArchitecture/ML-ModelControl[$(subst $(space),$(comma),$(ADDED_EXTRAS))]"
+endif
 
 # 殻の環境に足せる extra の名前の一覧
 extras-list:
