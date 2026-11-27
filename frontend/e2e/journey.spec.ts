@@ -171,7 +171,10 @@ test('小さな見本で 5 つの段階を通し, 前の段階の結果を次の
   await expect(split).toContainText(`${projectDir}/outputs/dataset`)
   await page.getByRole('button', { name: '推論する', exact: true }).click()
   await expect(page).toHaveURL(/\/infer\/results\/[^/]+$/, { timeout: 60_000 })
-  await expect(page.getByText(/元のデータセットのテスト用の分割 \(.+ の test\)/)).toBeVisible()
+  // 結果の入力が, 一式の実験が指すデータセットのテスト用の分割であること
+  await expect(
+    page.getByText(`元のデータセットのテスト用の分割 (${projectDir}/outputs/dataset の test)`),
+  ).toBeVisible()
   await expect(page.getByRole('link', { name: 'CSV' })).toBeVisible()
   await expect(select).toHaveValue(opened)
 
