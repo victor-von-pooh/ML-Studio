@@ -167,11 +167,11 @@ def create_api(
 | --- | --- | --- |
 | ML-Quest | `8ec1524` | ML-Pathfinder (submodule), ML-Fathom (submodule), ML-CreateArchitecture (git の依存) |
 | ML-EDA | `2a7782f` | ML-Fathom (submodule), ML-CreateArchitecture (git の依存), ML-Pathfinder (ML-Quest を通して) |
-| ML-ModelControl | `24d3720` | ML-CreateArchitecture (submodule), ML-Provide (git の依存) |
+| ML-ModelControl | `24d3720` | ML-CreateArchitecture (submodule), ML-Provide (git の依存. ML-Inference を通しても) |
 
 - 殻の木の中の同じライブラリの submodule と, 載せた各アプリが git の依存で直に持つライブラリの lock の版が, 全てこの表の版であることを, CI で `scripts/check_versions.py` が表を読んで確かめる (アプリの submodule を上げ忘れると, 殻の 1 つの環境のどの版で動いているかが分からなくなるため)
 - 版はライブラリの `main` のコミットから選ぶ. 上げるときは, 先にこの表を直してから各アプリに頼み, 全てのアプリが合わせた後に, 殻が持つ各アプリの submodule の版を上げる (アプリごとに上げると, 殻の 1 つの環境で版がぶつかるため)
-- 段階を載せて新しい共通のライブラリ (ML-ModelControl, ML-Found, ML-Inference など) を持つアプリが 2 つ以上になったら, この表に足す
+- 新しい共通のライブラリ (ML-Found, ML-Inference など) を使うアプリが 2 つ以上になったら, そのアプリを殻に載せる前に, この表に足す (載せる前にアプリが表の版に合わせられるようにするため)
 - ライブラリが git の版で求める他のライブラリ (ML-Quest の `ml-eda` の求めなど) は, 殻では上の `override-dependencies` で表の版に置き換わる. 各アプリの単独の起動はその求めのままでよい
 
 ## 9. 各アプリへの要求と進め方
