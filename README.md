@@ -1,2 +1,46 @@
 # ML-Studio
-機械学習全般をGUIで完結させるための統合アプリ.
+
+機械学習全般を GUI で完結させるための統合アプリ. 5 つの段階のアプリ (問題の設定, データの分析, モデルの作成・選定, 学習・評価, 推論) を 1 つのコマンドと 1 つのポートで開き, 上の帯の段階の並びで行き来する. 今は問題の設定の段階 ([ML-Pathfinder](https://github.com/victor-von-pooh/ML-Pathfinder)) を載せている.
+
+## 使い方
+
+### 必要なもの
+
+- [uv](https://docs.astral.sh/uv/) (Python は uv が用意する. 3.10 以上)
+- Node.js 24 以上と [pnpm](https://pnpm.io/) 11 以上 (`corepack enable` で `package.json` の版が入る)
+
+### 導入と起動
+
+```bash
+git clone --recursive https://github.com/victor-von-pooh/ML-Studio.git
+cd ML-Studio
+make setup   # submodule, Python と Node.js の依存
+make serve   # 画面をビルドして http://127.0.0.1:8760 で起動 (Ctrl+C で止める)
+```
+
+起動すると `ML-Studio を開く: http://127.0.0.1:8760/api/auth?token=...` の行が出るので, その URL をブラウザで開く (トークンは起動ごとに変わる. 環境変数 `ML_STUDIO_TOKEN` で決められる). ポートは `make serve PORT=8800` のように変えられる. 他のホストで待ち受ける場合は `ml-studio --host <ホスト> --allowed-host <接続に使う名前>` で起動する.
+
+上の帯のプロジェクトの欄で問題の設定を選ぶと, 全ての段階がその問題の設定を開く. 問題の設定の置き場は ML-Pathfinder の既定 (`~/.ml-pathfinder/`. 環境変数 `ML_PATHFINDER_HOME` で変えられる) で, ML-Pathfinder を単独で起動したときと同じものを開く.
+
+## 文書
+
+- [設計](docs/DESIGN.md): 今の設計と決まり (各アプリとの約束, 画面, API, 置き場, 安全)
+- [TODO](TODO.md): まだやっていないこと (優先度の順)
+
+## 開発
+
+```bash
+make dev     # API と画面の開発用のサーバー (開く URL を出す)
+make check   # lint, 型検査, テスト
+cd frontend && pnpm e2e   # 殻の通しのテスト
+```
+
+| ディレクトリ | 内容 |
+| --- | --- |
+| `backend/` | 殻の API (Python, FastAPI). 確かめと画面の配信を持ち, 各段階の API を載せる |
+| `frontend/` | 殻の画面 (TypeScript, React, Vite). 上の帯と, 各段階の画面の根の部品を載せる |
+| `ML-Pathfinder/` | 問題の設定の段階のアプリ (submodule) |
+
+## ライセンス
+
+MIT
