@@ -47,11 +47,7 @@ jobs:
         working-directory: ML-Fathom/backend
       - run: uv run --project ../../backend --frozen pytest -q
         working-directory: ML-CreateArchitecture/backend
-      # test_busy_environment はプロジェクトの Python に ML-EDA が無い前提で, 殻の
-      # 環境 (データの分析の段階のために ML-EDA を入れる) では足りない依存が出ないので外す
-      - run: >-
-          uv run --project ../../backend --frozen pytest -q
-          --deselect tests/test_environment.py::test_busy_environment
+      - run: uv run --project ../../backend --frozen pytest -q
         working-directory: ML-Dashboard/backend
       - run: uv run --project ../../backend --frozen pytest -q
         working-directory: ML-Provide/backend
