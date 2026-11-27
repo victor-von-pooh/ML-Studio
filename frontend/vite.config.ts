@@ -28,7 +28,7 @@ export default defineConfig({
   build: {
     outDir: '../backend/src/ml_studio/static',
     emptyOutDir: true,
-    // 段階のアプリの画面を 1 つのビルドにまとめる (データの分析の段階のグラフの部品とモデルの作成・選定の段階のキャンバスの部品が大きい)
+    // 段階の根の部品は段階ごとのチャンクに分けて読む (Shell.tsx). 超えたら閾値を上げずに分け方を見直す
     chunkSizeWarningLimit: 2500,
   },
   test: {

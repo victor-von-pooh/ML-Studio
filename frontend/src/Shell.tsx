@@ -1,8 +1,7 @@
-import { Moon, Sun, Workflow } from 'lucide-react'
-import { StageApp as ModelStageApp } from 'ml-createarchitecture-frontend'
-import { StageApp as DataStageApp } from 'ml-fathom-frontend'
-import { StageApp as ProblemStageApp } from 'ml-pathfinder-frontend'
-import type { ChangeEvent, MouseEvent } from 'react'
+import { LoaderCircle, Moon, Sun, TriangleAlert, Workflow } from 'lucide-react'
+import type { StageAppProps } from 'ml-pathfinder-frontend'
+import { Component, Suspense, lazy } from 'react'
+import type { ChangeEvent, ComponentType, MouseEvent, ReactNode } from 'react'
 
 import { useStageLocation } from './lib/location'
 import { useProjects, useSelectedProject, type ProjectItem } from './lib/projects'
@@ -11,6 +10,66 @@ import { STAGES, stageApiBase, stageBase, type StageKey } from './stages'
 
 /** 選んでいないことを表すプロジェクトの欄の値 */
 const NONE = ''
+
+/** 段階の根の部品を読む (段階ごとに別のチャンクにして, 開いたときに読む) */
+const lazyStage = (load: () => Promise<{ StageApp: ComponentType<StageAppProps> }>) =>
+  lazy(async () => ({ default: (await load()).StageApp }))
+
+/** 殻に載っている段階の根の部品 (載っていない段階は無し) */
+const STAGE_APPS: Partial<Record<StageKey, ComponentType<StageAppProps>>> = {
+  problem: lazyStage(() => import('ml-pathfinder-frontend')),
+  data: lazyStage(() => import('ml-fathom-frontend')),
+  model: lazyStage(() => import('ml-createarchitecture-frontend')),
+}
+
+/** 段階の画面を読む間に段階の場所に出す表示 */
+function StageLoading() {
+  return (
+    <div role="status" className="flex h-full items-center justify-center gap-2 text-sm text-ink-2">
+      <LoaderCircle size={16} className="animate-spin motion-reduce:animate-none" aria-hidden />
+      段階の画面を読み込んでいます
+    </div>
+  )
+}
+
+/**
+ * 段階の画面の誤りの境界. 段階の画面を読めないときと段階の部品が描く途中で例外を
+ * 出したときに, 殻の帯を残して段階の場所に理由と再読み込みのボタンを出す
+ */
+class StageBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
+  state = { error: null as Error | null }
+
+  static getDerivedStateFromError(error: unknown) {
+    return { error: error instanceof Error ? error : new Error(String(error)) }
+  }
+
+  render() {
+    const { error } = this.state
+    if (error === null) return this.props.children
+    // 読めなかったチャンクは React が失敗を覚えるので, ページごと読み直す
+    return (
+      <div className="flex h-full items-center justify-center p-6">
+        <div
+          role="alert"
+          className="flex max-w-lg flex-col items-start gap-3 rounded-lg border border-line bg-surface p-4"
+        >
+          <p className="flex items-center gap-2 font-medium text-critical-text">
+            <TriangleAlert size={16} aria-hidden />
+            段階の画面を出せません
+          </p>
+          <p className="text-sm break-all text-ink-2">{error.message}</p>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="rounded-lg border border-line px-3 py-1 text-sm hover:bg-surface-2"
+          >
+            再読み込み
+          </button>
+        </div>
+      </div>
+    )
+  }
+}
 
 /** プロジェクトの欄 (問題の設定の一覧から選ぶ) */
 function ProjectSelect({
@@ -118,6 +177,7 @@ export function Shell() {
   const [project, selectProject] = useSelectedProject()
   const projects = useProjects()
   const [theme, toggleTheme] = useTheme()
+  const StageApp = STAGE_APPS[location.stage]
   return (
     <div className="flex h-full flex-col">
       <a
@@ -148,39 +208,21 @@ export function Shell() {
         </button>
       </header>
       <div id="stage" tabIndex={-1} className="min-h-0 flex-1 outline-none">
-        {location.stage === 'problem' && (
-          <ProblemStageApp
-            key={location.key}
-            basename={stageBase('problem')}
-            apiBase={stageApiBase('problem')}
-            project={project}
-            onProjectChange={selectProject}
-            onProjectsChange={projects.reload}
-            embedded
-          />
-        )}
-        {location.stage === 'data' && (
-          <DataStageApp
-            key={location.key}
-            basename={stageBase('data')}
-            apiBase={stageApiBase('data')}
-            project={project}
-            onProjectChange={selectProject}
-            onProjectsChange={projects.reload}
-            embedded
-          />
-        )}
-        {location.stage === 'model' && (
-          <ModelStageApp
-            key={location.key}
-            basename={stageBase('model')}
-            apiBase={stageApiBase('model')}
-            project={project}
-            onProjectChange={selectProject}
-            onProjectsChange={projects.reload}
-            embedded
-          />
-        )}
+        {/* 段階を移ると境界も作り直し, 前の段階の誤りを残さない */}
+        <StageBoundary key={location.key}>
+          <Suspense fallback={<StageLoading />}>
+            {StageApp && (
+              <StageApp
+                basename={stageBase(location.stage)}
+                apiBase={stageApiBase(location.stage)}
+                project={project}
+                onProjectChange={selectProject}
+                onProjectsChange={projects.reload}
+                embedded
+              />
+            )}
+          </Suspense>
+        </StageBoundary>
       </div>
     </div>
   )
