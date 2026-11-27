@@ -6,15 +6,15 @@ ML-Studio で作業するときの方針をまとめる.
 
 5 つの段階のアプリ (問題の設定の ML-Pathfinder, データの分析の ML-Fathom, モデルの作成・選定の ML-CreateArchitecture, 学習・評価の ML-Dashboard, 推論の ML-Provide) を 1 つのアプリにまとめる殻. 1 つのコマンドと 1 つのポートで起動し, 段階の並び (問題の設定 → データの分析 → モデルの作成・選定 → 学習・評価 → 推論) で行き来し, 殻で選んだ 1 つのプロジェクトを全ての段階が見る. 設計は docs/DESIGN.md にまとめる.
 
-- 5 つのアプリは submodule. 各段階の画面と API, 段階のライブラリ (ML-Quest, ML-EDA, ML-ModelControl, ML-Found, ML-Inference) を使う仕組みは, それぞれのアプリとライブラリに置く. このリポジトリには殻に固有のもの (起動, 起動ごとのトークンと Origin の確かめ, 各アプリのバックエンドと画面を載せること, 段階の並び, 共通の部品, プロジェクトの選び方) だけを置く
+- 5 つのアプリは submodule で持つ. 各段階の画面と API, 段階のライブラリ (ML-Quest, ML-EDA, ML-ModelControl, ML-Found, ML-Inference) を使う仕組みは, それぞれのアプリとライブラリに置く. このリポジトリには殻に固有のもの (起動, 起動ごとのトークンと Origin の確かめ, 各アプリのバックエンドと画面を載せること, 段階の並び, 共通の部品, プロジェクトの選び方) だけを置く
 - 各アプリは単独でも今まで通り動くようにする. 殻に載せるために要る形 (バックエンドを mount できる, 画面を経路の頭を渡して載せられる, 殻で選んだプロジェクトを受け取れる) は各アプリの TODO.md の項目として各アプリで作る
 - 統合した後の通しの確かめ (結合テスト) は ML_tester が持つ. このリポジトリの手順書とテストは ML_tester が無くても通るようにする
 
 ## コードの書き方
 
-- Python: ML-Dashboard の submodule の ML-Found の CODING_STYLE.md に従う (日本語の NumPy 形式の docstring, コメントは体言止め, 79 文字以内など). Ruff と mypy (strict) を通す
+- Python: ML-Found の CODING_STYLE.md に従う (日本語の NumPy 形式の docstring, コメントは体言止め, 79 文字以内など). Ruff と mypy (strict) を通す
 - TypeScript: Prettier と oxlint に従い, `strict` で型検査を通す. コメントは日本語で書く
-- 構成と道具は 5 つのアプリにそろえる
+- 構成と道具は 5 つのアプリにそろえる (殻に載せたアプリと同じ道具で検査し, 共通の部品を使い回せるようにするため)
 - ドキュメントとコードのコメントでは, 「機械学習を全て GUI 上で行う」という目的のために開発しているリポジトリ (今は ML-Found, ML-Dashboard, ML-ModelControl, ML-CreateArchitecture, ML-EDA, ML-Fathom, ML-Inference, ML-Provide, ML-Quest, ML-Pathfinder, ML_tester, ML-Studio) 以外に触れない. ローカルのディレクトリ構成やパスも書かない
 
 ## 文書

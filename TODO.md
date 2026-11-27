@@ -5,10 +5,10 @@
 
 ## 優先度 高
 
-### 殻の設計を書き, CI を置く
-- 何を: docs/DESIGN.md に殻の設計 (起動, 起動ごとのトークンと Origin の確かめ, 各アプリのバックエンドを `/api/<段階>`, 画面を `/<段階>` の下に載せる決まり, 段階の並び, プロジェクトの選び方, 置き場) を書き, 検査とテストを動かす CI を置く
-- なぜ: CLAUDE.md の流れは先に docs/DESIGN.md を直し, CI が通ってからマージする決まりだが, 今はどちらも無いため
-- 終わりの条件: docs/DESIGN.md が CLAUDE.md の節の並びで殻の設計を持ち, PR で CI が動く
+### 殻の設計と文書を書き, CI を置く
+- 何を: docs/DESIGN.md に殻の設計 (起動, 起動ごとのトークンと Origin の確かめ, 各アプリのバックエンドを `/api/<段階>`, 画面を `/<段階>` の下に載せる決まり, 段階の並び, プロジェクトの選び方, 置き場) を書き, 検査とテストを動かす CI を置く. 起動できるようになったら README.md と docs/GUIDE.md を CLAUDE.md の文書の表の形で書く
+- なぜ: CLAUDE.md の流れは先に docs/DESIGN.md を直し, CI が通ってからマージする決まりだが, 今は DESIGN.md, CI, README.md の使い方, docs/GUIDE.md が無いため
+- 終わりの条件: docs/DESIGN.md が CLAUDE.md の節の並びで殻の設計を持ち, PR で CI が動き, README.md と docs/GUIDE.md が今の殻の使い方を書く
 - つながり: ML_tester の TODO.md の「統合の殻 ML-Studio のリポジトリを作る」
 
 ### 5 つのアプリを 1 つのコマンドと 1 つのポートで起動する
