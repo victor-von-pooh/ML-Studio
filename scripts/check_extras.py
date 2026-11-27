@@ -9,7 +9,7 @@ Provides-Extra を読む (名前の一覧を 2 か所に書かないため). 名
 知らない名前があれば, 選べる名前を出して 1 で終わる
 """
 import sys
-from importlib.metadata import metadata
+from importlib.metadata import PackageNotFoundError, metadata
 
 # 段階のアプリの名前と, 殻が既定で入れる extra (選ぶ対象から外す)
 APP = "ml-createarchitecture"
@@ -47,11 +47,16 @@ def main() -> int:
     Returns
     ----------
     code: int
-        全て選べる名前なら 0, 名前が無いか知らない名前があれば 1
+        全て選べる名前なら 0, 殻の環境が無いか, 名前が無いか知らない名前が
+        あれば 1
     """
-    # 名前が無い場合と, 知らない名前がある場合
+    # 殻の環境が無い場合と, 名前が無い場合と, 知らない名前がある場合
     chosen = sys.argv[1:]
-    known = known_extras()
+    try:
+        known = known_extras()
+    except PackageNotFoundError:
+        print("殻の環境がありません. 先に make setup を実行してください")
+        return 1
     unknown = [extra for extra in chosen if extra not in known]
     choices = f"選べる extra: {' '.join(known)}"
     if not chosen:

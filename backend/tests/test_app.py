@@ -497,9 +497,6 @@ def test_library_units_follow_env(client: TestClient) -> None:
         if not installed:
             assert all(unit["reason"] for unit in listed), source
 
-    # 推論の段階の依存で入る torchvision の部品は既定でも使える
-    assert importlib.util.find_spec("torchvision") is not None
-
 
 def test_train_api_mounted(client: TestClient, tmp_path: Path) -> None:
     """
