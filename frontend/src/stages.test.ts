@@ -14,8 +14,8 @@ describe('段階の選び方', () => {
     expect(stageFromPath('/model')).toBe('model')
     expect(stageFromPath('/train')).toBe('train')
     expect(stageFromPath('/train/projects/abc')).toBe('train')
-    // まだ載っていない段階は選ばない
-    expect(stageFromPath('/infer')).toBeNull()
+    expect(stageFromPath('/infer')).toBe('infer')
+    expect(stageFromPath('/infer/results/abc')).toBe('infer')
   })
 
   it('5 つの段階を決まった順で並べ, 頭を段階の鍵から作る', () => {
@@ -28,6 +28,8 @@ describe('段階の選び方', () => {
     expect(stageApiBase('model')).toBe('/api/model')
     expect(stageBase('train')).toBe('/train')
     expect(stageApiBase('train')).toBe('/api/train')
+    expect(stageBase('infer')).toBe('/infer')
+    expect(stageApiBase('infer')).toBe('/api/infer')
   })
 
   it('段階に合わない経路は最初の段階の頭に置き換える', () => {
@@ -35,7 +37,7 @@ describe('段階の選び方', () => {
     expect(readStage()).toBe('problem')
     expect(window.location.pathname).toBe('/problem')
 
-    window.history.replaceState(null, '', '/infer/x')
+    window.history.replaceState(null, '', '/unknown/x')
     expect(readStage()).toBe('problem')
     expect(window.location.pathname).toBe('/problem')
 

@@ -5,6 +5,7 @@
 @source '../../ML-Fathom/frontend/src';
 @source '../../ML-CreateArchitecture/frontend/src';
 @source '../../ML-Dashboard/frontend/src';
+@source '../../ML-Provide/frontend/src';
 
 /* クラスで切り替えるダークモード */
 @custom-variant dark (&:where(.dark, .dark *));

@@ -11,7 +11,7 @@ export interface StageLocation {
 }
 
 /**
- * 今の経路から段階を選ぶ. 段階に合わない経路 (`/` と知らない頭, まだ載っていない段階) は
+ * 今の経路から段階を選ぶ. 段階に合わない経路 (`/` と知らない頭) は
  * 最初の段階の頭に置き換える (履歴を増やさない). 置き換えたかも返す
  */
 export function resolveStage(): { stage: StageKey; replaced: boolean } {

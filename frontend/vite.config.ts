@@ -23,6 +23,7 @@ export default defineConfig({
         '../ML-Fathom/frontend',
         '../ML-CreateArchitecture/frontend',
         '../ML-Dashboard/frontend',
+        '../ML-Provide/frontend',
       ],
     },
   },

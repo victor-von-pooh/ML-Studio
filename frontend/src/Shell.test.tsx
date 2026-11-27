@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import type { StageAppProps } from 'ml-pathfinder-frontend'
 
 import { Shell } from './Shell'
@@ -43,6 +43,7 @@ vi.mock('ml-pathfinder-frontend', () => mockStageApp('ML-Pathfinder'))
 vi.mock('ml-fathom-frontend', () => mockStageApp('ML-Fathom'))
 vi.mock('ml-createarchitecture-frontend', () => mockStageApp('ML-CreateArchitecture'))
 vi.mock('ml-dashboard-frontend', () => mockStageApp('ML-Dashboard'))
+vi.mock('ml-provide-frontend', () => mockStageApp('ML-Provide'))
 
 /** 一覧の API の応答 (呼ばれるたびに次の一覧を返す) */
 function mockProblems(...lists: { id: string; name: string }[][]) {
@@ -102,10 +103,11 @@ describe('殻の画面', () => {
     )
   })
 
-  it('段階の並びは 5 つの段階を出し, 載っていない段階は押せない', async () => {
+  it('段階の並びは 5 つの段階を出し, どれも押せる', async () => {
     mockProblems([])
     await renderShell()
     const nav = screen.getByRole('navigation', { name: '段階' })
+    expect(within(nav).getAllByRole('link')).toHaveLength(5)
     const current = screen.getByRole('link', { name: '問題の設定' })
     expect(current).toHaveAttribute('aria-current', 'step')
     expect(screen.getByRole('link', { name: 'データの分析' })).toHaveAttribute('href', '/data')
@@ -114,12 +116,7 @@ describe('殻の画面', () => {
       '/model',
     )
     expect(screen.getByRole('link', { name: '学習・評価' })).toHaveAttribute('href', '/train')
-    expect(nav).toHaveTextContent('推論')
-    // 押せない段階はリンクでなく, まだ載っていないと読み上げにも出す
-    expect(screen.queryByRole('link', { name: /推論/ })).toBeNull()
-    const pending = screen.getByText('推論', { exact: false })
-    expect(pending).toHaveTextContent('推論 (まだ載っていないので開けない)')
-    expect(pending).toHaveAttribute('title', 'ML-Provide はまだ載っていない')
+    expect(screen.getByRole('link', { name: '推論' })).toHaveAttribute('href', '/infer')
   })
 
   it('モデルの作成・選定を押すと, 選んだプロジェクトを引き継いで ML-CreateArchitecture の根の部品を出す', async () => {
@@ -223,6 +220,38 @@ describe('殻の画面', () => {
     expect(stage.app).toBe('ML-CreateArchitecture')
     expect(stage.props?.basename).toBe('/model')
     expect(stage.props?.apiBase).toBe('/api/model')
+  })
+
+  it('推論を押すと, 選んだプロジェクトを引き継いで ML-Provide の根の部品を出す', async () => {
+    localStorage.setItem('studio-project', 'p1')
+    mockProblems([{ id: 'p1', name: '需要' }])
+    await renderShell()
+    fireEvent.click(screen.getByRole('link', { name: '推論' }))
+    expect(window.location.pathname).toBe('/infer')
+    await waitForStage('ML-Provide')
+    expect(screen.getByRole('link', { name: '推論' })).toHaveAttribute('aria-current', 'step')
+    expect(stage.props).toMatchObject({
+      basename: '/infer',
+      apiBase: '/api/infer',
+      project: 'p1',
+      embedded: true,
+    })
+
+    // 部品の onProjectChange で殻の選びを替える
+    await screen.findByRole('option', { name: '需要' })
+    fireEvent.click(screen.getByRole('button', { name: '部品の中で開く' }))
+    expect(stage.props?.project).toBe('p2')
+    expect(localStorage.getItem('studio-project')).toBe('p2')
+  })
+
+  it('/infer の下で開くと, 推論の段階から始める', async () => {
+    mockProblems([])
+    window.history.replaceState(null, '', '/infer/results/x')
+    await renderShell()
+    expect(window.location.pathname).toBe('/infer/results/x')
+    expect(stage.app).toBe('ML-Provide')
+    expect(stage.props?.basename).toBe('/infer')
+    expect(stage.props?.apiBase).toBe('/api/infer')
   })
 
   it('/train の下で開くと, 学習・評価の段階から始める', async () => {
