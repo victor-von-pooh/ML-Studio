@@ -184,7 +184,8 @@ test('小さな見本で 5 つの段階を通し, 前の段階の結果を次の
   await expect(select).toHaveValue(opened)
 
   // 6. 推論の一式の一覧: 殻で選んだ問題で絞った一覧に, 登録した一式が出る. 殻の欄で
-  // 選んでいない形にすると絞りが外れ, 選んだ問題に戻すと絞った一覧に戻る
+  // 選んでいない形にすると絞りが外れ, 選んだ問題に戻すと絞った一覧に戻る.
+  // 殻の欄を替えても推論の段階に留まる
   await goStage(page, '推論', /\/infer$/)
   const bundles = page.getByRole('table', { name: '登録した推論の一式', exact: true })
   const bundleLink = bundles.getByRole('link', { name: bundleName, exact: true })
@@ -196,11 +197,51 @@ test('小さな見本で 5 つの段階を通し, 前の段階の結果を次の
   await expect(bundleLink).toBeVisible()
   await expect(bundles.getByRole('row')).toHaveCount(2)
   await select.selectOption({ label: '選んでいない' })
+  await expect(page).toHaveURL(/\/infer$/)
   await expect(showAll).toHaveCount(0)
   await expect(bundleLink).toBeVisible()
   await select.selectOption(opened)
+  await expect(page).toHaveURL(/\/infer$/)
   await expect(showAll).not.toBeChecked()
   await expect(bundleLink).toBeVisible()
+
+  // 絞りが効くこと: 2 つ目の問題を作ると殻の欄がその問題を採り, 一覧から登録した一式が
+  // 消えて「選んだ問題の一式がありません」の文が出る. 元の問題に戻すと一式が出る.
+  // 名前はやり直しと繰り返しごとに分ける (殻の置き場は起動のときに 1 度だけ消すため)
+  // 問題の設定の段階は選んだ問題を開く. 開き終えてから選びを外して一覧に戻る
+  // (開く途中で外すと, 開いた問題を殻の欄が採り直すため)
+  await goStage(page, '問題の設定', new RegExp(`/problem/problems/${opened}$`))
+  await expect(page.getByRole('heading', { name: '解約の引き止め' })).toBeVisible()
+  await select.selectOption({ label: '選んでいない' })
+  await expect(page).toHaveURL(/\/problem$/)
+  const otherName = `一式の無い問題 ${testInfo.repeatEachIndex}-${testInfo.retry}`
+  await page.getByLabel(/^問題の名前/).fill(otherName)
+  await page.getByRole('button', { name: '作る', exact: true }).click()
+  await expect(page).toHaveURL(/\/problem\/problems\/[^/]+$/)
+  await expect(page.getByRole('heading', { name: otherName })).toBeVisible()
+  const other = new URL(page.url()).pathname.split('/').pop()!
+  expect(other).not.toBe(opened)
+  await expect(select).toHaveValue(other)
+  await goStage(page, '推論', /\/infer$/)
+  await expect(
+    page.getByRole('checkbox', {
+      name: `全ての一式を出す (出さなければ, 選んだ問題 ${other} の一式だけ)`,
+      exact: true,
+    }),
+  ).not.toBeChecked()
+  await expect(
+    page.getByText(
+      '選んだ問題の一式がありません. 「全ての一式を出す」に印を付けると他の一式が出ます. この問題の一式は「学習の結果から作る」か「実験の一覧から登録」で足せます.',
+      { exact: true },
+    ),
+  ).toBeVisible()
+  await expect(bundles).toHaveCount(0)
+  await expect(bundleLink).toHaveCount(0)
+  await select.selectOption(opened)
+  await expect(page).toHaveURL(/\/infer$/)
+  await expect(showAll).not.toBeChecked()
+  await expect(bundleLink).toBeVisible()
+  await expect(bundles.getByRole('row')).toHaveCount(2)
 
   expect(errors).toEqual([])
 })
