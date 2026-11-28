@@ -36,7 +36,7 @@ def create_api(
 | 引数 | 意味 |
 | --- | --- |
 | `data_dir` | アプリの置き場. None の場合は各アプリの既定 (環境変数かホームの下) |
-| `problems_dir` | 問題の設定の置き場 (`<識別子>/problem.yaml` が並ぶディレクトリ). None の場合は各アプリの今の既定. 決めた値 (既定も含む) は `app.state.problems_dir` に置き, 問題の設定を読む所は全てここから取る (殻が ML-Pathfinder の決めた場所を読んで他に渡せるようにするため) |
+| `problems_dir` | 問題の設定の置き場 (`<識別子>/problem.yaml` が並ぶディレクトリ). None の場合は各アプリの今の既定. 決めた値 (既定も含む) は `app.state.problems_dir` に置き, 問題を読む所は全てここから取る (殻が ML-Pathfinder の決めた場所を読んで他に渡せるようにするため) |
 | アプリ固有の引数 | 起動時に登録簿に入れる自作の部品. ML-CreateArchitecture は `modules`, ML-Provide は `procedures` と `units` |
 
 返す FastAPI のアプリは次を満たす.
@@ -213,7 +213,7 @@ def create_api(
 
 | ライブラリ | 版 | 使うアプリ |
 | --- | --- | --- |
-| ML-Quest | `bdcdd2b` | ML-Pathfinder (submodule), ML-Fathom (submodule), ML-CreateArchitecture (git の依存), ML-Dashboard (submodule), ML-Provide (submodule) |
+| ML-Quest | `b97ed89` | ML-Pathfinder (submodule), ML-Fathom (submodule), ML-CreateArchitecture (git の依存), ML-Dashboard (submodule), ML-Provide (submodule) |
 | ML-EDA | `2a7782f` | ML-Fathom (submodule), ML-CreateArchitecture (git の依存), ML-Provide (git の依存. ML-Inference を通しても), ML-Pathfinder (ML-Quest を通して) |
 | ML-ModelControl | `24d3720` | ML-CreateArchitecture (submodule), ML-Provide (git の依存. ML-Inference を通しても) |
 
@@ -229,7 +229,7 @@ def create_api(
 | 要求 | 中身 (2 の節) | 確かめ方 |
 | --- | --- | --- |
 | R1. `create_api` | 確かめと画面の配信を持たない API のアプリを返す関数を公開する. 準備は `create_api` の中で済ませ (lifespan を使わない), 呼ぶたびに新しいアプリを返す. 単独の `create_app` はその外側に確かめを付けて `/api` の下に加える | 単独の起動の確かめ (401, 403, 400, 画面の配信) が今と同じで, 別の頭に mount した `create_api` が確かめ無しで動き, 2 度呼んでも誤りにならないテストが通る |
-| R2. `problems_dir` | `create_api` の `problems_dir` で問題の設定の置き場を受け取り, `app.state.problems_dir` から読む | 渡した置き場の問題の設定を読むテストが通る |
+| R2. `problems_dir` | `create_api` の `problems_dir` で問題の設定の置き場を受け取り, `app.state.problems_dir` から読む | 渡した置き場の問題を読むテストが通る |
 | R3. 根の部品 | `basename`, `apiBase`, `project`, `onProjectChange`, `onProjectsChange`, `embedded` を受け取る段階の画面の部品を公開する. 狭い画面でも, 段階の中を移る手段を段階の画面が持つ (殻の上の帯は段階の中の移動を持たず, 単独の起動で狭い画面にサイドバーを出さない画面は, 殻の下で段階の中を移れなくなるため) | 殻の画面に取り込み, 段階の頭の下で画面と API の呼び出しが動く. 狭い画面でも段階の中の画面へ移れる |
 | R4. 根からの絶対パスを使わない | 画面のソース (`src`) で根から始まる絶対パスを使わない. 移動はルーターの `basename` の下にし, 画像は import する. `index.html` は殻が自分のものを使うので, 各アプリの `index.html` の `/favicon.svg` は単独の起動のために残してよい | 殻の下で段階の画面から殻の画面へ移らない |
 | R5. 明暗 | `html` の `dark` と `localStorage` の `theme` で持ち, `embedded` では読むだけにし, `html` のクラスの変化を見て読み直す (殻が切り替えたときに, 色を読むグラフなども替わるようにするため) | 殻の切り替えが段階の画面に効く |
