@@ -163,8 +163,8 @@ function StageNav({ stage, onGo }: { stage: StageKey; onGo: (stage: StageKey) =>
  */
 export function Shell() {
   const [location, go] = useStageLocation()
-  const [project, selectProject] = useSelectedProject()
   const projects = useProjects()
+  const [project, selectProject, acceptProject] = useSelectedProject(projects)
   const [theme, toggleTheme] = useTheme()
   const StageApp = STAGE_APPS[location.stage]
   return (
@@ -204,7 +204,7 @@ export function Shell() {
               basename={stageBase(location.stage)}
               apiBase={stageApiBase(location.stage)}
               project={project}
-              onProjectChange={selectProject}
+              onProjectChange={acceptProject}
               onProjectsChange={projects.reload}
               embedded
             />
