@@ -19,6 +19,18 @@
 - 終わりの条件: 5 つの段階の画面で共通の部品が同じ見た目と動きになる
 - つながり: 高の「段階の名前と画面の言葉をそろえる」の後. 各アプリの TODO.md の「画面の共通の部品を殻にそろえる」
 
+### 部品が知らせた選びが一覧に無いときは採らない
+- 何を: 殻が部品の `onProjectChange` で受けた値を, 一覧 (`useProjects`) にあるか null のときだけ採るようにする. 一覧に無いときは一覧を読み直し, 読み直しても無ければ選びを替えず, 部品に今の値を `project` で渡し直す. 部品が新しく作ったプロジェクトの知らせが一覧の読み直しより先に届いても, 読み直した後で採る
+- なぜ: 今の殻は受けた値をそのまま選びにして `localStorage` に残すので, 一覧に無い識別子を知らされると, 殻の欄に出ない選びを全ての段階が見るため
+- 終わりの条件: 一覧に無い値を知らせる部品を置いたテストで, 選びと `localStorage` が替わらず部品に今の値が渡し直されること, 一覧にある値と新しく作った値は採られることを `Shell.test.tsx` で確かめる. docs/DESIGN.md の 3 の節の決まりと合う
+- つながり: docs/DESIGN.md の 2 の節 (`onProjectChange`) と 3 の節 (選んだプロジェクト), R6
+
+### 共通のライブラリの版の表に ML-Quest の main を入れる
+- 何を: ML-Quest の main (ML-EDA の求めを表の版に上げた `a50b404`) を, 各アプリが先に上げた後に, 表の ML-Quest の版と殻の各アプリの submodule を 1 つの PR で上げる
+- なぜ: 表は ML-Quest の `8ec1524` のままで, ML-Quest 自身の ML-EDA の求めが表の版と食い違う (殻では override で置き換わる) ままのため
+- 終わりの条件: ML-Pathfinder, ML-Fathom, ML-CreateArchitecture, ML-Dashboard, ML-Provide が新しい ML-Quest に上がり, 表と殻の submodule を 1 つの PR で上げて, 殻の CI の `scripts/check_versions.py` が通る
+- つながり: docs/DESIGN.md の 8 の節 (共通のライブラリの版) と R8
+
 ## 優先度 低
 
 ### Linux の殻で torchaudio の部品を使えるようにする
