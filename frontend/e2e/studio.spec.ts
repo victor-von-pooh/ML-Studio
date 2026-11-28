@@ -1,4 +1,26 @@
-import { expect, test } from '@playwright/test'
+import { expect, type Page, test } from '@playwright/test'
+
+// 段階の並びの名前 (各段階の画面の頭の見出し h1 は, このどれか 1 つ. R12 の見出し)
+const STAGE_NAMES = ['問題の設定', 'データの分析', 'モデルの作成・選定', '学習・評価', '推論']
+
+/** 段階の頭の画面の h1 が 1 つで, 開いた段階の名前 (段階の名前の 1 つ) であることを確かめる */
+async function expectStageHeading(page: Page, name: string) {
+  expect(STAGE_NAMES).toContain(name)
+  const heading = page.getByRole('heading', { level: 1 })
+  await expect(heading).toHaveCount(1)
+  await expect(heading).toHaveText(name)
+}
+
+/**
+ * 段階の下の画面の h1 が 1 つで, パンくずの頭が段階の名前 (段階の名前の 1 つ) の段階の頭の
+ * 画面へのリンクであることを確かめる (下の画面の h1 は開いた物の名前)
+ */
+async function expectSubHeading(page: Page, name: string) {
+  expect(STAGE_NAMES).toContain(name)
+  await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
+  const crumbs = page.getByRole('navigation', { name: 'パンくず' })
+  await expect(crumbs.getByRole('link').first()).toHaveText(name)
+}
 
 // 殻を開き, 問題の設定の段階で問題を作り, 問題の欄で選んで開く
 test('問題を作り, 問題の欄で選んで開く', async ({ page }, testInfo) => {
@@ -28,6 +50,7 @@ test('問題を作り, 問題の欄で選んで開く', async ({ page }, testInf
   await page.getByRole('button', { name: '作る', exact: true }).click()
   await expect(page).toHaveURL(/\/problem\/problems\/[^/]+$/)
   await expect(page.getByRole('heading', { name })).toBeVisible()
+  await expectSubHeading(page, '問題の設定')
   const opened = new URL(page.url()).pathname.split('/').pop()!
   await expect(select.getByRole('option', { name, exact: true })).toHaveCount(1)
   await expect(select).toHaveValue(opened)
@@ -36,6 +59,7 @@ test('問題を作り, 問題の欄で選んで開く', async ({ page }, testInf
   await select.selectOption('')
   await expect(page).toHaveURL(/\/problem$/)
   await expect(page.getByRole('heading', { name: '問題の設定', exact: true })).toBeVisible()
+  await expectStageHeading(page, '問題の設定')
   await select.selectOption({ label: name })
   await expect(page).toHaveURL(new RegExp(`/problem/problems/${opened}$`))
   await expect(page.getByRole('heading', { name })).toBeVisible()
@@ -92,7 +116,8 @@ test('選んだ問題を引き継いでデータの分析の段階を開く', as
     'aria-current',
     'step',
   )
-  await expect(page.getByRole('heading', { name: 'データ', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'データの分析', exact: true })).toBeVisible()
+  await expectStageHeading(page, 'データの分析')
   const card = page.getByRole('region', { name: '選んだ問題', exact: true })
   await expect(card.getByText('店の売上')).toBeVisible()
   await expect(card.getByText(new RegExp(`/${opened}/problem\\.yaml$`))).toBeVisible()
@@ -197,6 +222,7 @@ test('選んだ問題を引き継いでモデルの作成・選定の段階を�
   )
   const canvas = page.locator('.react-flow')
   await expect(canvas).toBeVisible()
+  await expectStageHeading(page, 'モデルの作成・選定')
   await expect(select).toHaveValue(opened)
   // 殻の下ではアプリの名前と明暗の切り替えを出さない (殻の上の帯が持つ)
   await expect(page.getByRole('heading', { name: 'ML-CreateArchitecture' })).toHaveCount(0)
@@ -265,6 +291,7 @@ test('選んだ問題を引き継いで学習・評価の段階を開く', async
     'step',
   )
   await expect(page.getByRole('heading', { name: 'プロジェクト', exact: true })).toBeVisible()
+  await expectStageHeading(page, '学習・評価')
   await expect(select).toHaveValue(opened)
   // 殻の下ではアプリの名前と明暗の切り替えを出さない (殻の上の帯が持つ)
   await expect(page.getByText('ML-Dashboard', { exact: true })).toHaveCount(0)
@@ -516,6 +543,7 @@ test('選んだ問題を引き継いで推論の段階を開く', async ({ page 
   expect((await bundles).status()).toBe(200)
   await expect(stages.getByRole('link', { name: '推論' })).toHaveAttribute('aria-current', 'step')
   await expect(page.getByRole('heading', { name: '推論の一式', exact: true })).toBeVisible()
+  await expectStageHeading(page, '推論')
   await expect(select).toHaveValue(opened)
   // 殻の下ではアプリの名前と明暗の切り替えを出さない (殻の上の帯が持つ)
   await expect(page.getByText('ML-Provide', { exact: true })).toHaveCount(0)
@@ -586,6 +614,7 @@ test('段階の画面を段階ごとに読み, 直に開いても再読み込み
   await expect(page.locator('.react-flow')).toBeVisible()
   await page.reload()
   await expect(page.locator('.react-flow')).toBeVisible()
+  await expectStageHeading(page, 'モデルの作成・選定')
   await expect(
     page
       .getByRole('navigation', { name: '段階' })
@@ -597,6 +626,7 @@ test('段階の画面を段階ごとに読み, 直に開いても再読み込み
   await expect(page.getByRole('heading', { name: '書き出したデータセット' })).toBeVisible()
   await page.reload()
   await expect(page.getByRole('heading', { name: '書き出したデータセット' })).toBeVisible()
+  await expectSubHeading(page, 'データの分析')
   expect(chunks.size).toBe(3)
 
   // 学習・評価の段階の中の経路を直に開き, 再読み込みしても同じ画面を出す
@@ -604,6 +634,7 @@ test('段階の画面を段階ごとに読み, 直に開いても再読み込み
   await expect(page.getByRole('heading', { name: 'ジョブ', exact: true })).toBeVisible()
   await page.reload()
   await expect(page.getByRole('heading', { name: 'ジョブ', exact: true })).toBeVisible()
+  await expectSubHeading(page, '学習・評価')
   await expect(
     page.getByRole('navigation', { name: '段階' }).getByRole('link', { name: '学習・評価' }),
   ).toHaveAttribute('aria-current', 'step')
@@ -614,6 +645,7 @@ test('段階の画面を段階ごとに読み, 直に開いても再読み込み
   await expect(page.getByRole('heading', { name: '結果', exact: true })).toBeVisible()
   await page.reload()
   await expect(page.getByRole('heading', { name: '結果', exact: true })).toBeVisible()
+  await expectSubHeading(page, '推論')
   await expect(
     page.getByRole('navigation', { name: '段階' }).getByRole('link', { name: '推論' }),
   ).toHaveAttribute('aria-current', 'step')
@@ -641,7 +673,7 @@ test('段階の画面を読めないときは理由を出し, 再読み込みで
   // 読めるように戻して再読み込みすると, データの分析の段階を出す
   await page.unroute(/\/assets\/StageApp-[^/]+\.js$/)
   await alert.getByRole('button', { name: '再読み込み' }).click()
-  await expect(page.getByRole('heading', { name: 'データ', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'データの分析', exact: true })).toBeVisible()
   await expect(page.getByRole('alert')).toHaveCount(0)
 })
 
