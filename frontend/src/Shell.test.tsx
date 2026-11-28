@@ -319,7 +319,7 @@ describe('殻の画面', () => {
     expect(localStorage.getItem('studio-project')).toBe('p2')
   })
 
-  it('部品が知らせた値が一覧に無いときは, 一覧を読み直しても無ければ採らずに今の値を渡し直す', async () => {
+  it('部品が知らせた値が一覧に無いときは, 一覧を読み直しても無ければ採らずに今の値を保つ', async () => {
     localStorage.setItem('studio-project', 'p1')
     const fetchMock = mockProblems([{ id: 'p1', name: '需要' }])
     await renderShell()

@@ -99,7 +99,7 @@ export function useProjects(): Projects {
  * 殻で選んだ問題と, 選びを替える関数 (localStorage の `studio-project` に残す)
  *
  * 部品の `onProjectChange` で受けた値は一覧にあるか null のときだけ採る. 一覧に無いときは
- * 一覧を読み直し, 読み直しても無ければ選びを替えない (部品には今の値を渡し直す)
+ * 一覧を読み直し, 読み直しても無ければ選びを替えない (殻の project は替わらず, 部品には知らせが届かない)
  *
  * @param projects - 問題の一覧
  * @returns 選んだ問題, 欄で選んだときの関数, 部品が知らせたときの関数
