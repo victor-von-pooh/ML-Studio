@@ -2060,7 +2060,7 @@ data = [
 
 [package.metadata]
 requires-dist = [
-    { name = "ml-eda", extras = ["image", "audio"], marker = "extra == 'data'", git = "https://github.com/victor-von-pooh/ML-EDA.git?rev=660ea3b" },
+    { name = "ml-eda", extras = ["image", "audio"], marker = "extra == 'data'", git = "https://github.com/victor-von-pooh/ML-EDA.git?rev=14e9b8e" },
     { name = "pandas", specifier = ">=2.0" },
     { name = "pytest", marker = "extra == 'dev'" },
     { name = "pyyaml" },
