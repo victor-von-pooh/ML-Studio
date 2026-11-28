@@ -112,6 +112,8 @@ make check   # lint, 型検査, テスト
 cd frontend && pnpm e2e   # 殻の通しのテスト
 ```
 
+`make dev` の画面のサーバーは `/api` を Host を変えずに転送する (`frontend/vite.config.ts` の `changeOrigin: false`). バックエンドは Origin と Host が違う書き込みを断るので, Host を転送先に変えると画面からの書き込みが全て 403 になる.
+
 | ディレクトリ | 内容 |
 | --- | --- |
 | `backend/` | 殻の API (Python, FastAPI). 確かめと画面の配信を持ち, 各段階の API を載せる |
