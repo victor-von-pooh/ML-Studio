@@ -215,7 +215,7 @@ def create_api(
 
 | ライブラリ | 版 | 使うアプリ |
 | --- | --- | --- |
-| ML-Quest | `ae3d60c` | ML-Pathfinder (submodule), ML-Fathom (submodule), ML-CreateArchitecture (git の依存), ML-Dashboard (submodule), ML-Provide (submodule) |
+| ML-Quest | `8695ffb` | ML-Pathfinder (submodule), ML-Fathom (submodule), ML-CreateArchitecture (git の依存), ML-Dashboard (submodule), ML-Provide (submodule) |
 | ML-EDA | `660ea3b` | ML-Fathom (submodule), ML-CreateArchitecture (git の依存), ML-Provide (git の依存. ML-Inference を通しても), ML-Pathfinder (ML-Quest を通して) |
 | ML-ModelControl | `76c6bfc` | ML-CreateArchitecture (submodule), ML-Provide (git の依存. ML-Inference を通しても) |
 
