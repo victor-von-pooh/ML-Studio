@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 
-// 殻を開き, 問題の設定の段階で問題を作り, プロジェクトの欄で選んで開く
-test('問題の設定を作り, プロジェクトの欄で選んで開く', async ({ page }, testInfo) => {
+// 殻を開き, 問題の設定の段階で問題を作り, 問題の欄で選んで開く
+test('問題の設定を作り, 問題の欄で選んで開く', async ({ page }, testInfo) => {
   // 画面の例外と console の誤り (React を 2 つ読んだときなど) を集める
   const errors: string[] = []
   page.on('pageerror', (error) => errors.push(error.message))
@@ -17,7 +17,7 @@ test('問題の設定を作り, プロジェクトの欄で選んで開く', asy
     'aria-current',
     'step',
   )
-  const select = page.getByLabel('プロジェクト')
+  const select = page.getByLabel('問題', { exact: true })
   await expect(select).toHaveValue('')
 
   // 問題の設定の段階の画面で新しく作ると開き, 殻の欄にも出て選ばれる. 名前はやり直し
@@ -63,7 +63,7 @@ test('問題の設定を作り, プロジェクトの欄で選んで開く', asy
 
 // 殻で選んだ問題の設定を引き継いでデータの分析の段階に移り, 段階の中の移動, API の呼び出し,
 // 殻の明暗の切り替えが ML-Fathom の画面に効くことを確かめる
-test('選んだ問題の設定を引き継いでデータの分析の段階を開く', async ({ page }, testInfo) => {
+test('選んだ問題を引き継いでデータの分析の段階を開く', async ({ page }, testInfo) => {
   const errors: string[] = []
   page.on('pageerror', (error) => errors.push(error.message))
   page.on('console', (message) => {
@@ -77,7 +77,7 @@ test('選んだ問題の設定を引き継いでデータの分析の段階を�
   await page.getByRole('button', { name: '作る', exact: true }).click()
   await expect(page).toHaveURL(/\/problem\/problems\/[^/]+$/)
   const opened = new URL(page.url()).pathname.split('/').pop()!
-  const select = page.getByLabel('プロジェクト')
+  const select = page.getByLabel('問題', { exact: true })
   await expect(select).toHaveValue(opened)
 
   // 段階の並びでデータの分析に移ると, 選んだ問題の設定の欄を ML-Fathom の API から出す
@@ -164,7 +164,7 @@ test('選んだ問題の設定を引き継いでデータの分析の段階を�
 
 // 殻で選んだ問題の設定を引き継いでモデルの作成・選定の段階に移り, ML-CreateArchitecture の
 // 画面が殻の問題の設定の欄を出し, 殻の明暗の切り替えがキャンバスに効くことを確かめる
-test('選んだ問題の設定を引き継いでモデルの作成・選定の段階を開く', async ({ page }) => {
+test('選んだ問題を引き継いでモデルの作成・選定の段階を開く', async ({ page }) => {
   const errors: string[] = []
   page.on('pageerror', (error) => errors.push(error.message))
   page.on('console', (message) => {
@@ -178,8 +178,8 @@ test('選んだ問題の設定を引き継いでモデルの作成・選定の�
   await page.getByRole('button', { name: '作る', exact: true }).click()
   await expect(page).toHaveURL(/\/problem\/problems\/[^/]+$/)
   const opened = new URL(page.url()).pathname.split('/').pop()!
-  // (段階の画面の「データセットとプロジェクト」のボタンと分けるため, 名前を全て合わせる)
-  const select = page.getByLabel('プロジェクト', { exact: true })
+  // (段階の画面の「問題の名前」などの欄と分けるため, 名前を全て合わせる)
+  const select = page.getByLabel('問題', { exact: true })
   await expect(select).toHaveValue(opened)
 
   // 段階の並びでモデルの作成・選定に移ると, ML-CreateArchitecture の画面が API を /api/model の
@@ -234,7 +234,7 @@ test('選んだ問題の設定を引き継いでモデルの作成・選定の�
 
 // 殻で選んだ問題の設定を引き継いで学習・評価の段階に移り, ML-Dashboard の画面が殻の問題の
 // 設定の欄を出し, 殻の明暗の切り替えが段階の画面に効くことを確かめる
-test('選んだ問題の設定を引き継いで学習・評価の段階を開く', async ({ page }) => {
+test('選んだ問題を引き継いで学習・評価の段階を開く', async ({ page }) => {
   const errors: string[] = []
   page.on('pageerror', (error) => errors.push(error.message))
   page.on('console', (message) => {
@@ -248,7 +248,7 @@ test('選んだ問題の設定を引き継いで学習・評価の段階を開�
   await page.getByRole('button', { name: '作る', exact: true }).click()
   await expect(page).toHaveURL(/\/problem\/problems\/[^/]+$/)
   const opened = new URL(page.url()).pathname.split('/').pop()!
-  const select = page.getByLabel('プロジェクト', { exact: true })
+  const select = page.getByLabel('問題', { exact: true })
   await expect(select).toHaveValue(opened)
 
   // 段階の並びで学習・評価に移ると, ML-Dashboard の画面が API を /api/train の下に呼んで開き,
@@ -364,7 +364,7 @@ test('学習・評価の段階でブラウザの戻ると進むが段階の中�
 
 // 殻の欄で問題の設定を選んだ状態でも, 段階をまたいで戻ると作り直した学習・評価の段階の画面が
 // 今の経路を保つ (殻の選びに合わせる見張りが一覧に移さない) ことを確かめる
-test('問題の設定を選んだまま学習・評価の段階に戻っても今の経路を保つ', async ({ page }) => {
+test('問題を選んだまま学習・評価の段階に戻っても今の経路を保つ', async ({ page }) => {
   const errors: string[] = []
   page.on('pageerror', (error) => errors.push(error.message))
   page.on('console', (message) => {
@@ -378,7 +378,7 @@ test('問題の設定を選んだまま学習・評価の段階に戻っても�
   await page.getByRole('button', { name: '作る', exact: true }).click()
   await expect(page).toHaveURL(/\/problem\/problems\/[^/]+$/)
   const opened = new URL(page.url()).pathname.split('/').pop()!
-  const select = page.getByLabel('プロジェクト', { exact: true })
+  const select = page.getByLabel('問題', { exact: true })
   await expect(select).toHaveValue(opened)
 
   const stages = page.getByRole('navigation', { name: '段階' })
@@ -489,7 +489,7 @@ test('学習・評価の段階を往復しても戻ると進むの見張りの�
 
 // 殻で選んだ問題の設定を引き継いで推論の段階に移り, ML-Provide の画面が実験の一覧を殻の
 // 問題の設定で絞り, 殻の明暗の切り替えが段階の画面に効くことを確かめる
-test('選んだ問題の設定を引き継いで推論の段階を開く', async ({ page }) => {
+test('選んだ問題を引き継いで推論の段階を開く', async ({ page }) => {
   const errors: string[] = []
   page.on('pageerror', (error) => errors.push(error.message))
   page.on('console', (message) => {
@@ -503,7 +503,7 @@ test('選んだ問題の設定を引き継いで推論の段階を開く', async
   await page.getByRole('button', { name: '作る', exact: true }).click()
   await expect(page).toHaveURL(/\/problem\/problems\/[^/]+$/)
   const opened = new URL(page.url()).pathname.split('/').pop()!
-  const select = page.getByLabel('プロジェクト', { exact: true })
+  const select = page.getByLabel('問題', { exact: true })
   await expect(select).toHaveValue(opened)
 
   // 段階の並びで推論に移ると, ML-Provide の画面が API を /api/infer の下に呼んで開く
@@ -636,7 +636,7 @@ test('段階の画面を読めないときは理由を出し, 再読み込みで
   await expect(page).toHaveURL(/\/data$/)
   const alert = page.getByRole('alert')
   await expect(alert).toContainText('段階の画面を出せません')
-  await expect(page.getByLabel('プロジェクト')).toBeVisible()
+  await expect(page.getByLabel('問題', { exact: true })).toBeVisible()
 
   // 読めるように戻して再読み込みすると, データの分析の段階を出す
   await page.unroute(/\/assets\/StageApp-[^/]+\.js$/)
@@ -646,7 +646,7 @@ test('段階の画面を読めないときは理由を出し, 再読み込みで
 })
 
 // モデルの作成・選定の段階で, 殻の上の帯に focus があるときのキーが段階の中身を変えないこと
-// (R9) と, 書きかけのまま段階を移って戻るか殻の欄でプロジェクトを替えて戻ると下書きから
+// (R9) と, 書きかけのまま段階を移って戻るか殻の欄で問題を替えて戻ると下書きから
 // 戻せること (R10) を確かめる
 test('殻の帯のキーで段階の中身を変えず, 書きかけを下書きから戻せる', async ({ page }) => {
   const errors: string[] = []
@@ -666,7 +666,7 @@ test('殻の帯のキーで段階の中身を変えず, 書きかけを下書き
   // 殻の欄で替える 2 つの問題の設定を作り, 後で替える先から作って, 書きかけの元を選ぶ
   await page.goto('/api/auth?token=e2e-token')
   await expect(page).toHaveURL(/\/problem$/)
-  const select = page.getByLabel('プロジェクト', { exact: true })
+  const select = page.getByLabel('問題', { exact: true })
   const created: string[] = []
   for (const name of ['替える先の需要', '書きかけの需要']) {
     await page.getByLabel(/^問題の名前/).fill(name)
@@ -731,7 +731,7 @@ test('殻の帯のキーで段階の中身を変えず, 書きかけを下書き
   await expect(relu).toBeVisible()
   await expect(page.getByRole('button', { name: '保存 *' })).toBeVisible()
 
-  // R10: 書きかけのまま殻の欄でプロジェクトを替えると, 部品は外れず待たずに下書きに書く.
+  // R10: 書きかけのまま殻の欄で問題を替えると, 部品は外れず待たずに下書きに書く.
   // 保存する名前を打った直後に替えて戻し, 少し待って書く分を待たずに読み込み直しても
   // (待っている書き込みは読み込み直しで消える), 打った名前ごと下書きから戻せる
   const saveName = page.getByLabel('保存する名前')

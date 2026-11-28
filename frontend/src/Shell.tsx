@@ -8,7 +8,7 @@ import { useProjects, useSelectedProject, type ProjectItem } from './lib/project
 import { useTheme } from './lib/theme'
 import { STAGES, stageApiBase, stageBase, type StageKey } from './stages'
 
-/** 選んでいないことを表すプロジェクトの欄の値 */
+/** 選んでいないことを表す問題の欄の値 */
 const NONE = ''
 
 /** 段階の根の部品を読む (段階ごとに別のチャンクにして, 開いたときに読む) */
@@ -73,7 +73,7 @@ class StageBoundary extends Component<{ children: ReactNode }, { error: Error | 
   }
 }
 
-/** プロジェクトの欄 (問題の設定の一覧から選ぶ) */
+/** 問題の欄 (問題の設定の段階の一覧から選ぶ. 画面の語は「問題」, コードの名前は project) */
 function ProjectSelect({
   items,
   error,
@@ -93,7 +93,7 @@ function ProjectSelect({
   return (
     <div className="flex min-w-0 items-center gap-2">
       <label htmlFor="studio-project" className="shrink-0 text-xs font-medium text-ink-2">
-        プロジェクト
+        問題
       </label>
       <select
         id="studio-project"
@@ -158,7 +158,7 @@ function StageNav({ stage, onGo }: { stage: StageKey; onGo: (stage: StageKey) =>
 }
 
 /**
- * 殻の画面. 上に共通の帯 (名前, プロジェクトの欄, 段階の並び, 明暗の切り替え),
+ * 殻の画面. 上に共通の帯 (名前, 問題の欄, 段階の並び, 明暗の切り替え),
  * その下に経路の頭で選んだ段階の根の部品を置く
  */
 export function Shell() {

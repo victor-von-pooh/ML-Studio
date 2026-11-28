@@ -62,7 +62,7 @@ test('小さな見本で 5 つの段階を通し, 前の段階の結果を次の
   await expect(page.getByRole('heading', { name: '解約の引き止め' })).toBeVisible()
   await expect(page).toHaveURL(/\/problem\/problems\/[^/]+$/)
   const opened = new URL(page.url()).pathname.split('/').pop()!
-  const select = page.getByLabel('プロジェクト', { exact: true })
+  const select = page.getByLabel('問題', { exact: true })
   await expect(select).toHaveValue(opened)
 
   await page
