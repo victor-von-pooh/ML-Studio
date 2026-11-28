@@ -38,8 +38,9 @@ endif
 # extra) を足す. 名前は ML-CreateArchitecture と ML-ModelControl の両方の
 # extra (project は既定で入っているので受けて入れ直さない) と確かめ
 # (scripts/check_extras.py. 殻の環境の Python で, 環境が無ければ作らずに
-# 止める), 入っているライブラリは backend/uv.lock の版のまま (制約) にする. 制約は 1 度ファイルに書き, 書けた
-# 場合だけ入れる (パイプでは書けなくても制約なしで入れてしまうため).
+# 止める), 入っているライブラリは backend/uv.lock の版のまま (制約) に
+# する. 制約は 1 度ファイルに書き, 書けた場合だけ入れる (パイプでは書けな
+# くても制約なしで入れてしまうため).
 # 殻の pyproject.toml の上書きは ml-modelcontrol を extra 無しに置き換える
 # ので, その設定を読まずに (--no-config) 入れる. 前に足した extra は残し,
 # uv sync (make setup) で既定に戻る. project を除いて残りが無ければ何も
