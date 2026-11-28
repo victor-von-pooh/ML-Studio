@@ -215,8 +215,8 @@ def create_api(
 
 | ライブラリ | 版 | 使うアプリ |
 | --- | --- | --- |
-| ML-Quest | `2976074` | ML-Pathfinder (submodule), ML-Fathom (submodule), ML-CreateArchitecture (git の依存), ML-Dashboard (submodule), ML-Provide (submodule) |
-| ML-EDA | `660ea3b` | ML-Fathom (submodule), ML-CreateArchitecture (git の依存), ML-Provide (git の依存. ML-Inference を通しても), ML-Pathfinder (ML-Quest を通して) |
+| ML-Quest | `713a2c0` | ML-Pathfinder (submodule), ML-Fathom (submodule), ML-CreateArchitecture (git の依存), ML-Dashboard (submodule), ML-Provide (submodule) |
+| ML-EDA | `14e9b8e` | ML-Fathom (submodule), ML-CreateArchitecture (git の依存), ML-Provide (git の依存. ML-Inference を通しても), ML-Pathfinder (ML-Quest を通して) |
 | ML-ModelControl | `76c6bfc` | ML-CreateArchitecture (submodule), ML-Provide (git の依存. ML-Inference を通しても) |
 
 - 殻の木の中の同じライブラリの submodule と, 載せた各アプリが git の依存で直に持つライブラリの lock の版が, 全てこの表の版であることを, CI で `scripts/check_versions.py` が表を読んで確かめる (アプリの submodule を上げ忘れると, 殻の 1 つの環境のどの版で動いているかが分からなくなるため)
