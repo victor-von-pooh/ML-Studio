@@ -54,6 +54,9 @@ override-dependencies = [
     "ml-modelcontrol",
     "ml-quest[data]"
 ]
+# lock は uv 0.13.10 で作る (古い uv は lock を書き換えずに止まる)
+# 効くのは作業するこのプロジェクトの設定だけで, submodule の pyproject の設定は読まれない
+required-version = ">=0.13.10"
 
 # 段階のアプリと, それが使うライブラリ (submodule の中の submodule)
 [tool.uv.sources]
