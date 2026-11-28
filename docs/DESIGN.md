@@ -174,7 +174,7 @@ def create_api(
 | ML-ModelControl | `24d3720` | ML-CreateArchitecture (submodule), ML-Provide (git の依存. ML-Inference を通しても) |
 
 - 殻の木の中の同じライブラリの submodule と, 載せた各アプリが git の依存で直に持つライブラリの lock の版が, 全てこの表の版であることを, CI で `scripts/check_versions.py` が表を読んで確かめる (アプリの submodule を上げ忘れると, 殻の 1 つの環境のどの版で動いているかが分からなくなるため)
-- 版はライブラリの `main` のコミットから選ぶ. 上げるときは, 各アプリが先に自分の submodule と lock を新しい版に上げ (各アプリの単独の CI は殻の表を見ない), 最後にこの表と殻が持つ各アプリの submodule の版を 1 つの PR で上げる (表だけを先に直すと, 殻の CI の版の確かめが必ず落ち, アプリごとに殻の submodule を上げると, 殻の 1 つの環境で版がぶつかるため)
+- 版はライブラリの `main` のコミットから選ぶ. 上げるときは, 各アプリが先に自分の submodule と lock を新しい版に上げ, 最後にこの表と殻が持つ各アプリの submodule の版を 1 つの PR で上げる (表だけを先に直すと, 殻の CI の版の確かめが必ず落ち, アプリごとに殻の submodule を上げると, 殻の 1 つの環境で版がぶつかるため)
 - 新しい共通のライブラリ (ML-Found, ML-Inference など) を使うアプリが 2 つ以上になったら, そのアプリを殻に載せる前に, この表に足す (載せる前にアプリが表の版に合わせられるようにするため)
 - ライブラリが git の版で求める他のライブラリ (ML-Quest の `ml-eda` の求めなど) は, 殻では上の `override-dependencies` で表の版に置き換わる. 各アプリの単独の起動はその求めのままでよい
 
