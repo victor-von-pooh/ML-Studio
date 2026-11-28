@@ -21,8 +21,12 @@ import {
   type RefObject,
 } from 'react'
 
-/** 欄の枠の色の形. accent は知らせの欄, highlight は並びの中で 1 つを目立たせる欄 */
-export type CardTone = 'default' | 'accent' | 'highlight'
+/**
+ * 欄の枠の色の形. accent は知らせの欄, warning は決めてほしいことなどの注意を促す
+ * 欄, highlight は並びの中で 1 つを目立たせる欄 (色だけで違いを表さず, 文や印と
+ * 併せて使う)
+ */
+export type CardTone = 'default' | 'accent' | 'warning' | 'highlight'
 
 /**
  * 枠で囲んだ欄. 見出し (title) を持つときは, 見出しを名前にした区域 (region) として
@@ -63,12 +67,18 @@ export function Card({
         'rounded-xl shadow-sm shadow-black/[0.03]',
         tone === 'default' && 'border border-line bg-surface',
         tone === 'accent' && 'border border-accent/30 bg-accent-soft',
+        tone === 'warning' && 'border border-warning/60 bg-surface',
         tone === 'highlight' && 'border-2 border-accent bg-surface',
         className,
       )}
     >
       {(title || actions) && (
-        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-2.5">
+        <header
+          className={clsx(
+            'flex flex-wrap items-center justify-between gap-3 border-b px-4 py-2.5',
+            tone === 'accent' ? 'border-accent/30' : 'border-line',
+          )}
+        >
           <h2 id={titleId} className="text-sm font-semibold text-ink">
             {title}
           </h2>
@@ -129,7 +139,7 @@ export function Spinner({ label = '読み込み中' }: { label?: string }) {
 /**
  * 誤りの表示 (API の誤り). 操作の結果の誤りだけ読み上げ (live) の対象にする. 文の
  * 改行はそのまま出す (複数の誤りを 1 行ずつ読めるように). id を渡すと, 欄の
- * aria-describedby から結べる
+ * aria-describedby から結べる (結ぶときは live={false} にする. 二度読まれるため)
  */
 export function ErrorBox({
   error,
@@ -160,9 +170,21 @@ export function ErrorBox({
 }
 
 /**
+ * 欄の下の短い誤り (入力の確かめの誤り). 読み上げ (role) は持たず, 欄の
+ * aria-describedby から id で結び, 欄に aria-invalid を付ける
+ */
+export function FieldError({ id, children }: { id: string; children: ReactNode }) {
+  return (
+    <p id={id} className="mt-1 text-xs text-critical-text">
+      {children}
+    </p>
+  )
+}
+
+/**
  * 何も無いときの表示 (見出しと, 次にすることの説明). 見出しの段は level で決める.
- * 画面の h1 の直下に置くなら既定の 2, Card (h2) の中に置くなら 3 にする (見出しの
- * 段を飛ばさないため)
+ * 画面の h1 の直下と見出しの無い Card の中は既定の 2, 見出しのある Card と Dialog
+ * の中は 3 にする (見出しの段を飛ばさないため)
  */
 export function EmptyState({
   icon: Icon,
