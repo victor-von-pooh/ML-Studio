@@ -3,13 +3,13 @@ import { useCallback, useEffect, useState } from 'react'
 import { stageApiBase } from '../stages'
 import { PROJECT_KEY, readStorage, writeStorage } from './storage'
 
-/** プロジェクトの欄の 1 つ (問題の設定の識別子と名前) */
+/** 問題の欄の 1 つ (問題の識別子と名前) */
 export interface ProjectItem {
   id: string
   name: string
 }
 
-/** プロジェクトの一覧の状態 */
+/** 問題の一覧の状態 */
 export interface Projects {
   /** 一覧 (読み込む前は空. 読めなかったときは前に読めた一覧) */
   items: ProjectItem[]
@@ -30,7 +30,7 @@ function toItems(body: unknown): ProjectItem[] {
   })
 }
 
-/** 問題の設定の段階の API からプロジェクトの一覧を読む */
+/** 問題の設定の段階の API から問題の一覧を読む */
 export function useProjects(): Projects {
   const [items, setItems] = useState<ProjectItem[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -41,7 +41,7 @@ export function useProjects(): Projects {
     const controller = new AbortController()
     fetch(`${stageApiBase('problem')}/problems`, { signal: controller.signal })
       .then(async (response) => {
-        if (!response.ok) throw new Error(`一覧を読めません (${response.status})`)
+        if (!response.ok) throw new Error(`問題の一覧を読めません (${response.status})`)
         setItems(toItems(await response.json()))
         setError(null)
       })
@@ -58,7 +58,7 @@ export function useProjects(): Projects {
   return { items, error, reload }
 }
 
-/** 殻で選んだプロジェクトと, 選びを替える関数 (localStorage の `studio-project` に残す) */
+/** 殻で選んだ問題と, 選びを替える関数 (localStorage の `studio-project` に残す) */
 export function useSelectedProject(): [string | null, (project: string | null) => void] {
   const [project, setProject] = useState<string | null>(() => readStorage(PROJECT_KEY) || null)
 

@@ -119,7 +119,7 @@ describe('殻の画面', () => {
     expect(screen.getByRole('link', { name: '推論' })).toHaveAttribute('href', '/infer')
   })
 
-  it('モデルの作成・選定を押すと, 選んだプロジェクトを引き継いで ML-CreateArchitecture の根の部品を出す', async () => {
+  it('モデルの作成・選定を押すと, 選んだ問題を引き継いで ML-CreateArchitecture の根の部品を出す', async () => {
     localStorage.setItem('studio-project', 'p1')
     mockProblems([{ id: 'p1', name: '需要' }])
     await renderShell()
@@ -145,7 +145,7 @@ describe('殻の画面', () => {
     expect(localStorage.getItem('studio-project')).toBe('p2')
   })
 
-  it('学習・評価を押すと, 選んだプロジェクトを引き継いで ML-Dashboard の根の部品を出す', async () => {
+  it('学習・評価を押すと, 選んだ問題を引き継いで ML-Dashboard の根の部品を出す', async () => {
     localStorage.setItem('studio-project', 'p1')
     mockProblems([{ id: 'p1', name: '需要' }])
     await renderShell()
@@ -167,7 +167,7 @@ describe('殻の画面', () => {
     expect(localStorage.getItem('studio-project')).toBe('p2')
   })
 
-  it('データの分析を押すと, 選んだプロジェクトを引き継いで ML-Fathom の根の部品を出す', async () => {
+  it('データの分析を押すと, 選んだ問題を引き継いで ML-Fathom の根の部品を出す', async () => {
     localStorage.setItem('studio-project', 'p1')
     mockProblems([{ id: 'p1', name: '需要' }])
     await renderShell()
@@ -222,7 +222,7 @@ describe('殻の画面', () => {
     expect(stage.props?.apiBase).toBe('/api/model')
   })
 
-  it('推論を押すと, 選んだプロジェクトを引き継いで ML-Provide の根の部品を出す', async () => {
+  it('推論を押すと, 選んだ問題を引き継いで ML-Provide の根の部品を出す', async () => {
     localStorage.setItem('studio-project', 'p1')
     mockProblems([{ id: 'p1', name: '需要' }])
     await renderShell()
@@ -264,13 +264,13 @@ describe('殻の画面', () => {
     expect(stage.props?.apiBase).toBe('/api/train')
   })
 
-  it('プロジェクトの欄で選ぶと部品に渡し, localStorage に残す', async () => {
+  it('問題の欄で選ぶと部品に渡し, localStorage に残す', async () => {
     mockProblems([
       { id: 'p1', name: '需要' },
       { id: 'p2', name: '解約' },
     ])
     await renderShell()
-    const select = screen.getByLabelText('プロジェクト')
+    const select = screen.getByLabelText('問題')
     await screen.findByRole('option', { name: '解約' })
     fireEvent.change(select, { target: { value: 'p2' } })
     expect(stage.props?.project).toBe('p2')
@@ -294,7 +294,7 @@ describe('殻の画面', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '部品の中で開く' }))
     expect(stage.props?.project).toBe('p2')
-    expect(screen.getByLabelText('プロジェクト')).toHaveValue('p2')
+    expect(screen.getByLabelText('問題')).toHaveValue('p2')
     expect(localStorage.getItem('studio-project')).toBe('p2')
   })
 
@@ -312,7 +312,7 @@ describe('殻の画面', () => {
       vi.fn(async () => new Response('{}', { status: 401 })),
     )
     await renderShell()
-    expect(await screen.findByRole('alert')).toHaveTextContent('一覧を読めません (401)')
+    expect(await screen.findByRole('alert')).toHaveTextContent('問題の一覧を読めません (401)')
   })
 
   it('段階を押し直すと履歴を増やさずに頭に戻して部品を作り直す', async () => {
@@ -357,7 +357,7 @@ describe('殻の画面', () => {
     mockProblems([{ id: 'p1', name: '需要' }])
     await renderShell()
     expect(await screen.findByRole('option', { name: 'gone (一覧に無い)' })).toBeInTheDocument()
-    expect(screen.getByLabelText('プロジェクト')).toHaveValue('gone')
+    expect(screen.getByLabelText('問題')).toHaveValue('gone')
   })
 
   it('段階の画面を読む間は, 殻の帯を出したまま段階の場所に読み込み中と出す', async () => {
@@ -383,7 +383,7 @@ describe('殻の画面', () => {
     expect(alert).toHaveTextContent('段階の画面を出せません')
     expect(alert).toHaveTextContent('ML-Fathom の画面の誤り')
     expect(screen.getByRole('button', { name: '再読み込み' })).toBeInTheDocument()
-    expect(screen.getByLabelText('プロジェクト')).toBeInTheDocument()
+    expect(screen.getByLabelText('問題')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('link', { name: '問題の設定' }))
     await waitForStage('ML-Pathfinder')

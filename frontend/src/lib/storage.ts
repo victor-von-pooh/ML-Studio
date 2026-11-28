@@ -1,4 +1,4 @@
-/** 選んだプロジェクトを残す localStorage の鍵 */
+/** 選んだ問題を残す localStorage の鍵 */
 export const PROJECT_KEY = 'studio-project'
 
 /** 明暗を残す localStorage の鍵 (5 つのアプリと同じ) */
