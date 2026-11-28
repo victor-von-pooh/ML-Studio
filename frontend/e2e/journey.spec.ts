@@ -166,7 +166,10 @@ test('小さな見本で 5 つの段階を通し, 前の段階の結果を次の
   await page.getByRole('button', { name: '実験の一覧から登録' }).click()
   const experiments = page.getByRole('dialog', { name: '実験の一覧から登録' })
   await expect(experiments.getByText(`選んだ問題 ${opened}`)).toBeVisible()
-  await experiments.getByRole('button', { name: /^解約の引き止め \(.+\) を登録$/ }).click()
+  const registering = experiments.getByRole('button', { name: /^解約の引き止め \(.+\) を登録$/ })
+  // 登録した一式の名前 (一覧の確かめで使う)
+  const bundleName = (await registering.getAttribute('aria-label'))!.replace(/ を登録$/, '')
+  await registering.click()
   await expect(page).toHaveURL(/\/infer\/bundles\/[^/]+$/, { timeout: 30_000 })
   await page.getByRole('radio', { name: '元のデータセットのテスト用の分割' }).check()
   const split = page.getByRole('region', { name: 'テスト用の分割' })
@@ -179,6 +182,25 @@ test('小さな見本で 5 つの段階を通し, 前の段階の結果を次の
   ).toBeVisible()
   await expect(page.getByRole('link', { name: 'CSV' })).toBeVisible()
   await expect(select).toHaveValue(opened)
+
+  // 6. 推論の一式の一覧: 殻で選んだ問題で絞った一覧に, 登録した一式が出る. 殻の欄で
+  // 選んでいない形にすると絞りが外れ, 選んだ問題に戻すと絞った一覧に戻る
+  await goStage(page, '推論', /\/infer$/)
+  const bundles = page.getByRole('table', { name: '登録した推論の一式', exact: true })
+  const bundleLink = bundles.getByRole('link', { name: bundleName, exact: true })
+  const showAll = page.getByRole('checkbox', {
+    name: `全ての一式を出す (出さなければ, 選んだ問題 ${opened} の一式だけ)`,
+    exact: true,
+  })
+  await expect(showAll).not.toBeChecked()
+  await expect(bundleLink).toBeVisible()
+  await expect(bundles.getByRole('row')).toHaveCount(2)
+  await select.selectOption({ label: '選んでいない' })
+  await expect(showAll).toHaveCount(0)
+  await expect(bundleLink).toBeVisible()
+  await select.selectOption(opened)
+  await expect(showAll).not.toBeChecked()
+  await expect(bundleLink).toBeVisible()
 
   expect(errors).toEqual([])
 })
