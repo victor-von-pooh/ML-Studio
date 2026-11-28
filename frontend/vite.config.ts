@@ -12,8 +12,9 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      // バックエンドのポートは make dev PORT=... で揃える
-      '/api': `http://127.0.0.1:${process.env.API_PORT ?? '8760'}`,
+      // バックエンドのポートは make dev PORT=... で揃える. Host を画面のまま渡し,
+      // バックエンドの Origin の確かめ (Origin と Host の一致) を通す
+      '/api': { target: `http://127.0.0.1:${process.env.API_PORT ?? '8760'}`, changeOrigin: false },
     },
     fs: {
       // submodule の段階のアプリの画面のソースも配る
