@@ -93,7 +93,7 @@ test('選んだ問題を引き継いでデータの分析の段階を開く', as
     'step',
   )
   await expect(page.getByRole('heading', { name: 'データ', exact: true })).toBeVisible()
-  const card = page.getByRole('region', { name: '選んだ問題' })
+  const card = page.getByRole('region', { name: '選んだ問題', exact: true })
   await expect(card.getByText('店の売上')).toBeVisible()
   await expect(card.getByText(new RegExp(`/${opened}/problem\\.yaml$`))).toBeVisible()
   await expect(select).toHaveValue(opened)
@@ -207,10 +207,10 @@ test('選んだ問題を引き継いでモデルの作成・選定の段階を�
   const problems = page.waitForResponse(
     (response) => new URL(response.url()).pathname === '/api/model/problems',
   )
-  await page.getByRole('button', { name: 'データセットと学習のプロジェクト' }).click()
+  await page.getByRole('button', { name: 'データセットと学習のプロジェクト', exact: true }).click()
   expect((await problems).status()).toBe(200)
-  const dialog = page.getByRole('dialog', { name: 'データセットと学習のプロジェクト' })
-  const note = dialog.getByRole('region', { name: '選んだ問題' })
+  const dialog = page.getByRole('dialog', { name: 'データセットと学習のプロジェクト', exact: true })
+  const note = dialog.getByRole('region', { name: '選んだ問題', exact: true })
   await expect(note.getByText('部品の需要')).toBeVisible()
   await expect(note.getByText(`(${opened})`)).toBeVisible()
   await page.keyboard.press('Escape')
@@ -271,7 +271,7 @@ test('選んだ問題を引き継いで学習・評価の段階を開く', async
   await expect(page.getByRole('button', { name: /表示にする$/ })).toHaveCount(1)
 
   // 殻で選んだ問題の欄 (まだ学習のプロジェクトを記録していないので, 開けない理由も出す)
-  const note = page.getByRole('region', { name: '選んだ問題' })
+  const note = page.getByRole('region', { name: '選んだ問題', exact: true })
   await expect(note.getByText('機械の故障', { exact: true })).toBeVisible()
   await expect(note.getByText(opened, { exact: true })).toBeVisible()
   await expect(note.getByText(/プロジェクトの記録がありません/)).toBeVisible()

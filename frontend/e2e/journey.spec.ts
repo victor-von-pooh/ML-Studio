@@ -89,9 +89,9 @@ test('小さな見本で 5 つの段階を通し, 前の段階の結果を次の
 
   // 2. データの分析: 殻で選んだ問題から始め, 記録した場所へデータセットを書き出す
   await goStage(page, 'データの分析', /\/data$/)
-  const card = page.getByRole('region', { name: '選んだ問題' })
+  const card = page.getByRole('region', { name: '選んだ問題', exact: true })
   await expect(card.getByText('解約の引き止め')).toBeVisible()
-  await card.getByRole('button', { name: 'この問題から始める' }).click()
+  await card.getByRole('button', { name: 'この問題から始める', exact: true }).click()
   await expect(page).toHaveURL(/\/data\/sources\/[^/]+$/, { timeout: 30_000 })
   await page.getByRole('tab', { name: '前処理と書き出し' }).click()
   const exportDataset = page.getByRole('region', { name: '学習のプロジェクトへ書き出す' })
@@ -110,10 +110,13 @@ test('小さな見本で 5 つの段階を通し, 前の段階の結果を次の
   // 入力と出力を作って学習のプロジェクトに保存する
   await goStage(page, 'モデルの作成・選定', /\/model$/)
   await expect(page.locator('.react-flow')).toBeVisible()
-  await page.getByRole('button', { name: 'データセットと学習のプロジェクト' }).click()
-  const project = page.getByRole('dialog', { name: 'データセットと学習のプロジェクト' })
+  await page.getByRole('button', { name: 'データセットと学習のプロジェクト', exact: true }).click()
+  const project = page.getByRole('dialog', {
+    name: 'データセットと学習のプロジェクト',
+    exact: true,
+  })
   await expect(
-    project.getByRole('region', { name: '選んだ問題' }).getByText(`(${opened})`),
+    project.getByRole('region', { name: '選んだ問題', exact: true }).getByText(`(${opened})`),
   ).toBeVisible()
   await expect(project.getByLabel('データセットのディレクトリ')).toHaveValue(
     `${projectDir}/outputs/dataset`,
@@ -136,7 +139,7 @@ test('小さな見本で 5 つの段階を通し, 前の段階の結果を次の
 
   // 4. 学習・評価: 殻で選んだ問題が記録した学習のプロジェクトを登録し, 1 エポックだけ学習する
   await goStage(page, '学習・評価', /\/train$/)
-  const note = page.getByRole('region', { name: '選んだ問題' })
+  const note = page.getByRole('region', { name: '選んだ問題', exact: true })
   await expect(note.getByRole('group', { name: '記録したプロジェクト' })).toHaveText(
     `記録したプロジェクト: ${projectDir}`,
   )

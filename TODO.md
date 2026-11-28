@@ -11,19 +11,19 @@
 - 終わりの条件: docs/DESIGN.md の 9 の節に R12 が決まり, 5 つの段階の画面で共通の部品が同じ見た目と動きになり, 殻の CI が部品の形と名前の差を見つける
 - つながり: 各アプリの TODO.md の「画面の共通の部品を殻にそろえる」
 
+### ML-ModelControl が返す文を言葉の表にそろえる
+- 何を: ML-ModelControl が返してモデルの作成・選定の段階の画面にそのまま出る文 (誤り, 使えない理由, 知らせ. 「確認」など) を docs/DESIGN.md の 5 の節の「段階をまたぐ言葉」の表に合わせる. ML-ModelControl で直し, ML-CreateArchitecture が上げた後に, 共通のライブラリの版の表と殻の submodule を 1 つの PR で上げる. ML-Quest と ML-Inference の文は表にそろい, 殻はその版に上げた
+- なぜ: モデルの作成・選定の段階の画面の文は表に合ったが, ML-ModelControl から来る文が表と合わず, 同じ画面に違う語が並ぶため
+- 終わりの条件: ML-ModelControl の画面に出る文が表の語になり, 表と殻の submodule をその版に上げて, 殻の e2e (studio と journey) が通る
+- つながり: ML-CreateArchitecture の TODO.md の「ML-ModelControl が返す文を画面の言葉にそろえる」. docs/DESIGN.md の 8 の節 (共通のライブラリの版) と R11
+
 ## 優先度 中
 
-### ライブラリが返す文を言葉の表にそろえる
-- 何を: ライブラリ (ML-Quest, ML-ModelControl, ML-Inference) が返して段階の画面にそのまま出る文 (確かめの文, 誤り, 使えない理由, 結論の文. 1 つの問題を指す「問題の設定」, 「確認」, 「人の確認に回す」など) を docs/DESIGN.md の 5 の節の「段階をまたぐ言葉」の表に合わせる. ライブラリで直し, 各アプリが上げた後に, 共通のライブラリの版の表と殻の submodule を 1 つの PR で上げる
-- なぜ: 5 つの段階の画面の文は表に合ったが, ライブラリから来る文が表と合わず, 同じ画面に違う語が並ぶため
-- 終わりの条件: 3 つのライブラリの画面に出る文が表の語になり, 表と殻の submodule をその版に上げて, 殻の e2e (studio と journey) が通る
-- つながり: ML-Pathfinder の TODO.md の「ML-Quest が返す文を殻の言葉の表にそろえる」, ML-CreateArchitecture の「ライブラリが返す文を画面の言葉にそろえる」, ML-Provide の「ML-Inference が返す文を殻の言葉の表にそろえる」. docs/DESIGN.md の 8 の節 (共通のライブラリの版) と R11
-
 ### 画面の例の画像を撮り直す
-- 何を: README と docs/GUIDE.md の画像 (`docs/images/*.png`, `docs/images/guide/*.png`) を撮り直す. 今の画像は上の帯の欄の名前が「プロジェクト」のまま写っている. 次の画像は段階の画面の語も前の語のまま写っている: `docs/images/export.png` (「この場所を問題に記録しました」), `docs/images/guide/data_start.png` (「選んだ問題」のカードと「この問題から始める」), `docs/images/guide/model_project.png` (「データセットと学習のプロジェクト」の対話の「選んだ問題」と「学習のプロジェクトに保存」), `docs/images/guide/train_start.png` (「選んだ問題」の欄), `docs/images/guide/infer_register.png` (「全ての問題の実験を出す」)
+- 何を: README と docs/GUIDE.md の画像 (`docs/images/*.png`, `docs/images/guide/*.png`) を撮り直す. 今の画像は上の帯の欄の名前が「プロジェクト」のまま写っている. 次の画像は, 段階の画面の文も前の語のまま写っている (括弧の中は今の画面の文): `docs/images/export.png` (「この場所を問題に記録しました」), `docs/images/guide/data_start.png` (「選んだ問題」のカードと「この問題から始める」), `docs/images/guide/model_project.png` (「データセットと学習のプロジェクト」の対話の「選んだ問題」と「学習のプロジェクトに保存」), `docs/images/guide/train_start.png` (「選んだ問題」の欄), `docs/images/guide/infer_register.png` (「全ての問題の実験を出す」)
 - なぜ: 画面の欄の名前は「問題」で, 段階の画面の語も表に合ったので, 文と画像の語が食い違うため
-- 終わりの条件: 全ての画像の上の帯に「問題」の欄が写り, 段階の画面の語が今の画面と同じになる. 中の「ライブラリが返す文を言葉の表にそろえる」の後に撮れば 1 度で済む
-- つながり: 中の「ライブラリが返す文を言葉の表にそろえる」の後
+- 終わりの条件: 全ての画像の上の帯に「問題」の欄が写り, 段階の画面の語が今の画面と同じになる. 高の「ML-ModelControl が返す文を言葉の表にそろえる」の後に撮れば 1 度で済む
+- つながり: 高の「ML-ModelControl が返す文を言葉の表にそろえる」の後
 
 ## 優先度 低
 
