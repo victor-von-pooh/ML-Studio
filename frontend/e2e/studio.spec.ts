@@ -673,7 +673,10 @@ test('殻の帯のキーで段階の中身を変えず, 書きかけを下書き
     await page.getByRole('button', { name: '作る', exact: true }).click()
     await expect(page).toHaveURL(/\/problem\/problems\/[^/]+$/)
     await expect(page.getByRole('heading', { name })).toBeVisible()
-    created.push(new URL(page.url()).pathname.split('/').pop()!)
+    const id = new URL(page.url()).pathname.split('/').pop()!
+    // 殻は一覧を読み直してから作った問題を採るので, 欄で選ばれるまで待ってから外す
+    await expect(select).toHaveValue(id)
+    created.push(id)
     await select.selectOption('')
     await expect(page).toHaveURL(/\/problem$/)
   }

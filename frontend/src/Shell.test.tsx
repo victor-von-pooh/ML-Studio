@@ -30,6 +30,15 @@ const mockStageApp = vi.hoisted(() => async (app: string) => {
           <button type="button" onClick={() => props.onProjectChange('p2')}>
             部品の中で開く
           </button>
+          <button type="button" onClick={() => props.onProjectChange('p3')}>
+            部品の中で作る
+          </button>
+          <button type="button" onClick={() => props.onProjectChange('ghost')}>
+            一覧に無いものを開く
+          </button>
+          <button type="button" onClick={() => props.onProjectChange(null)}>
+            部品の中で消す
+          </button>
           <button type="button" onClick={() => props.onProjectsChange()}>
             一覧が変わった
           </button>
@@ -121,7 +130,10 @@ describe('殻の画面', () => {
 
   it('モデルの作成・選定を押すと, 選んだ問題を引き継いで ML-CreateArchitecture の根の部品を出す', async () => {
     localStorage.setItem('studio-project', 'p1')
-    mockProblems([{ id: 'p1', name: '需要' }])
+    mockProblems([
+      { id: 'p1', name: '需要' },
+      { id: 'p2', name: '解約' },
+    ])
     await renderShell()
     fireEvent.click(screen.getByRole('link', { name: 'モデルの作成・選定' }))
     expect(window.location.pathname).toBe('/model')
@@ -147,7 +159,10 @@ describe('殻の画面', () => {
 
   it('学習・評価を押すと, 選んだ問題を引き継いで ML-Dashboard の根の部品を出す', async () => {
     localStorage.setItem('studio-project', 'p1')
-    mockProblems([{ id: 'p1', name: '需要' }])
+    mockProblems([
+      { id: 'p1', name: '需要' },
+      { id: 'p2', name: '解約' },
+    ])
     await renderShell()
     fireEvent.click(screen.getByRole('link', { name: '学習・評価' }))
     expect(window.location.pathname).toBe('/train')
@@ -169,7 +184,10 @@ describe('殻の画面', () => {
 
   it('データの分析を押すと, 選んだ問題を引き継いで ML-Fathom の根の部品を出す', async () => {
     localStorage.setItem('studio-project', 'p1')
-    mockProblems([{ id: 'p1', name: '需要' }])
+    mockProblems([
+      { id: 'p1', name: '需要' },
+      { id: 'p2', name: '解約' },
+    ])
     await renderShell()
     expect(stage.app).toBe('ML-Pathfinder')
     const length = window.history.length
@@ -224,7 +242,10 @@ describe('殻の画面', () => {
 
   it('推論を押すと, 選んだ問題を引き継いで ML-Provide の根の部品を出す', async () => {
     localStorage.setItem('studio-project', 'p1')
-    mockProblems([{ id: 'p1', name: '需要' }])
+    mockProblems([
+      { id: 'p1', name: '需要' },
+      { id: 'p2', name: '解約' },
+    ])
     await renderShell()
     fireEvent.click(screen.getByRole('link', { name: '推論' }))
     expect(window.location.pathname).toBe('/infer')
@@ -295,6 +316,100 @@ describe('殻の画面', () => {
     fireEvent.click(screen.getByRole('button', { name: '部品の中で開く' }))
     expect(stage.props?.project).toBe('p2')
     expect(screen.getByLabelText('問題')).toHaveValue('p2')
+    expect(localStorage.getItem('studio-project')).toBe('p2')
+  })
+
+  it('部品が知らせた値が一覧に無いときは, 一覧を読み直しても無ければ採らずに今の値を渡し直す', async () => {
+    localStorage.setItem('studio-project', 'p1')
+    const fetchMock = mockProblems([{ id: 'p1', name: '需要' }])
+    await renderShell()
+    await screen.findByRole('option', { name: '需要' })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+
+    fireEvent.click(screen.getByRole('button', { name: '一覧に無いものを開く' }))
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(screen.queryByRole('alert')).toBeNull())
+    expect(stage.props?.project).toBe('p1')
+    expect(screen.getByLabelText('問題')).toHaveValue('p1')
+    expect(localStorage.getItem('studio-project')).toBe('p1')
+    expect(screen.queryByRole('option', { name: /ghost/ })).toBeNull()
+  })
+
+  it('部品が新しく作った問題は, 一覧の読み直しより先に知らせが届いても, 読み直した後で採る', async () => {
+    localStorage.setItem('studio-project', 'p1')
+    const fetchMock = mockProblems(
+      [{ id: 'p1', name: '需要' }],
+      [
+        { id: 'p1', name: '需要' },
+        { id: 'p3', name: '新しい問題' },
+      ],
+    )
+    await renderShell()
+    await screen.findByRole('option', { name: '需要' })
+
+    // 一覧が変わった知らせより先に, 作った問題を開いた知らせが届く
+    fireEvent.click(screen.getByRole('button', { name: '部品の中で作る' }))
+    expect(stage.props?.project).toBe('p1')
+    fireEvent.click(screen.getByRole('button', { name: '一覧が変わった' }))
+    await waitFor(() => expect(stage.props?.project).toBe('p3'))
+    expect(screen.getByLabelText('問題')).toHaveValue('p3')
+    expect(localStorage.getItem('studio-project')).toBe('p3')
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+  })
+
+  it('部品が知らせた null (消した問題) は採る', async () => {
+    localStorage.setItem('studio-project', 'p1')
+    mockProblems([{ id: 'p1', name: '需要' }])
+    await renderShell()
+    await screen.findByRole('option', { name: '需要' })
+    fireEvent.click(screen.getByRole('button', { name: '部品の中で消す' }))
+    expect(stage.props?.project).toBeNull()
+    expect(screen.getByLabelText('問題')).toHaveValue('')
+    expect(localStorage.getItem('studio-project')).toBeNull()
+  })
+
+  it('一覧の読み直しの間に別の選びが入ったら, 前の知らせを採らない', async () => {
+    localStorage.setItem('studio-project', 'p1')
+    // 2 度目の読み直し (知らせを確かめる読み直し) の応答を止めておく
+    const lists = [
+      [
+        { id: 'p1', name: '需要' },
+        { id: 'p2', name: '解約' },
+      ],
+      [
+        { id: 'p1', name: '需要' },
+        { id: 'p2', name: '解約' },
+        { id: 'p3', name: '新しい問題' },
+      ],
+    ]
+    let release = () => {}
+    const held = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    let calls = 0
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        calls += 1
+        const body = lists[Math.min(calls, 2) - 1]
+        if (calls === 2) await held
+        return new Response(JSON.stringify(body), { status: 200 })
+      }),
+    )
+    await renderShell()
+    await screen.findByRole('option', { name: '解約' })
+
+    fireEvent.click(screen.getByRole('button', { name: '部品の中で作る' }))
+    await waitFor(() => expect(calls).toBe(2))
+    fireEvent.change(screen.getByLabelText('問題'), { target: { value: 'p2' } })
+    expect(stage.props?.project).toBe('p2')
+
+    await act(async () => {
+      release()
+      await held
+    })
+    await screen.findByRole('option', { name: '新しい問題' })
+    expect(stage.props?.project).toBe('p2')
     expect(localStorage.getItem('studio-project')).toBe('p2')
   })
 
