@@ -1694,7 +1694,7 @@ project = [
 [package.metadata]
 requires-dist = [
     { name = "fastapi", specifier = ">=0.115" },
-    { name = "ml-eda", marker = "extra == 'project'", git = "https://github.com/victor-von-pooh/ML-EDA.git" },
+    { name = "ml-eda", extras = ["parquet"], marker = "extra == 'project'", git = "https://github.com/victor-von-pooh/ML-EDA.git" },
     { name = "ml-modelcontrol", editable = "../ML-CreateArchitecture/ML-ModelControl" },
     { name = "ml-modelcontrol", extras = ["all"], marker = "extra == 'all'", editable = "../ML-CreateArchitecture/ML-ModelControl" },
     { name = "ml-modelcontrol", extras = ["einops"], marker = "extra == 'einops'", editable = "../ML-CreateArchitecture/ML-ModelControl" },
