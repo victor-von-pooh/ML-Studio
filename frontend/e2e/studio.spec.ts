@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 
 // 殻を開き, 問題の設定の段階で問題を作り, 問題の欄で選んで開く
-test('問題の設定を作り, 問題の欄で選んで開く', async ({ page }, testInfo) => {
+test('問題を作り, 問題の欄で選んで開く', async ({ page }, testInfo) => {
   // 画面の例外と console の誤り (React を 2 つ読んだときなど) を集める
   const errors: string[] = []
   page.on('pageerror', (error) => errors.push(error.message))
@@ -22,7 +22,7 @@ test('問題の設定を作り, 問題の欄で選んで開く', async ({ page }
 
   // 問題の設定の段階の画面で新しく作ると開き, 殻の欄にも出て選ばれる. 名前はやり直し
   // (CI の retries) と繰り返しごとに分ける (殻の置き場は起動のときに 1 度だけ消すので,
-  // 前の回に作った同じ名前の問題の設定が欄に残るため)
+  // 前の回に作った同じ名前の問題が欄に残るため)
   const name = `総菜の需要 ${testInfo.repeatEachIndex}-${testInfo.retry}`
   await page.getByLabel(/^問題の名前/).fill(name)
   await page.getByRole('button', { name: '作る', exact: true }).click()
@@ -45,7 +45,7 @@ test('問題の設定を作り, 問題の欄で選んで開く', async ({ page }
   await expect(select).toHaveValue(opened)
   await expect(page.getByRole('heading', { name })).toBeVisible()
 
-  // 知らない頭は最初の段階に移し, 選んだ問題の設定を開く
+  // 知らない頭は最初の段階に移し, 選んだ問題を開く
   await page.goto('/unknown')
   await expect(page).toHaveURL(new RegExp(`/problem/problems/${opened}$`))
   await expect(page.getByRole('heading', { name })).toBeVisible()
@@ -61,7 +61,7 @@ test('問題の設定を作り, 問題の欄で選んで開く', async ({ page }
   expect(errors).toEqual([])
 })
 
-// 殻で選んだ問題の設定を引き継いでデータの分析の段階に移り, 段階の中の移動, API の呼び出し,
+// 殻で選んだ問題を引き継いでデータの分析の段階に移り, 段階の中の移動, API の呼び出し,
 // 殻の明暗の切り替えが ML-Fathom の画面に効くことを確かめる
 test('選んだ問題を引き継いでデータの分析の段階を開く', async ({ page }, testInfo) => {
   const errors: string[] = []
@@ -70,7 +70,7 @@ test('選んだ問題を引き継いでデータの分析の段階を開く', as
     if (message.type() === 'error') errors.push(message.text())
   })
 
-  // 問題の設定を作って殻の欄で選ぶ
+  // 問題を作って殻の欄で選ぶ
   await page.goto('/api/auth?token=e2e-token')
   await expect(page).toHaveURL(/\/problem$/)
   await page.getByLabel(/^問題の名前/).fill('店の売上')
@@ -80,7 +80,7 @@ test('選んだ問題を引き継いでデータの分析の段階を開く', as
   const select = page.getByLabel('問題', { exact: true })
   await expect(select).toHaveValue(opened)
 
-  // 段階の並びでデータの分析に移ると, 選んだ問題の設定の欄を ML-Fathom の API から出す
+  // 段階の並びでデータの分析に移ると, 選んだ問題の欄を ML-Fathom の API から出す
   const problems = page.waitForResponse(
     (response) => new URL(response.url()).pathname === '/api/data/problems',
   )
@@ -93,7 +93,7 @@ test('選んだ問題を引き継いでデータの分析の段階を開く', as
     'step',
   )
   await expect(page.getByRole('heading', { name: 'データ', exact: true })).toBeVisible()
-  const card = page.getByRole('region', { name: '選んだ問題の設定' })
+  const card = page.getByRole('region', { name: '選んだ問題' })
   await expect(card.getByText('店の売上')).toBeVisible()
   await expect(card.getByText(new RegExp(`/${opened}/problem\\.yaml$`))).toBeVisible()
   await expect(select).toHaveValue(opened)
@@ -154,7 +154,7 @@ test('選んだ問題を引き継いでデータの分析の段階を開く', as
   await page.getByRole('button', { name: '明るい表示にする' }).click()
   await expect.poll(color).toBe(light)
 
-  // 問題の設定の段階に戻ると, 同じ問題の設定を開く
+  // 問題の設定の段階に戻ると, 同じ問題を開く
   await stages.getByRole('link', { name: '問題の設定' }).click()
   await expect(page).toHaveURL(new RegExp(`/problem/problems/${opened}$`))
   await expect(page.getByRole('heading', { name: '店の売上' })).toBeVisible()
@@ -162,8 +162,8 @@ test('選んだ問題を引き継いでデータの分析の段階を開く', as
   expect(errors).toEqual([])
 })
 
-// 殻で選んだ問題の設定を引き継いでモデルの作成・選定の段階に移り, ML-CreateArchitecture の
-// 画面が殻の問題の設定の欄を出し, 殻の明暗の切り替えがキャンバスに効くことを確かめる
+// 殻で選んだ問題を引き継いでモデルの作成・選定の段階に移り, ML-CreateArchitecture の
+// 画面が殻で選んだ問題の欄を出し, 殻の明暗の切り替えがキャンバスに効くことを確かめる
 test('選んだ問題を引き継いでモデルの作成・選定の段階を開く', async ({ page }) => {
   const errors: string[] = []
   page.on('pageerror', (error) => errors.push(error.message))
@@ -171,7 +171,7 @@ test('選んだ問題を引き継いでモデルの作成・選定の段階を�
     if (message.type() === 'error') errors.push(message.text())
   })
 
-  // 問題の設定を作って殻の欄で選ぶ
+  // 問題を作って殻の欄で選ぶ
   await page.goto('/api/auth?token=e2e-token')
   await expect(page).toHaveURL(/\/problem$/)
   await page.getByLabel(/^問題の名前/).fill('部品の需要')
@@ -202,15 +202,15 @@ test('選んだ問題を引き継いでモデルの作成・選定の段階を�
   await expect(page.getByRole('heading', { name: 'ML-CreateArchitecture' })).toHaveCount(0)
   await expect(page.getByRole('button', { name: /表示にする$/ })).toHaveCount(1)
 
-  // 「データセットとプロジェクト」に殻で選んだ問題の設定の欄が出る
-  // (まだプロジェクトを書き出していないので, 使えない理由も出す)
+  // 「データセットと学習のプロジェクト」に殻で選んだ問題の欄が出る
+  // (まだ学習のプロジェクトを書き出していないので, 使えない理由も出す)
   const problems = page.waitForResponse(
     (response) => new URL(response.url()).pathname === '/api/model/problems',
   )
-  await page.getByRole('button', { name: 'データセットとプロジェクト' }).click()
+  await page.getByRole('button', { name: 'データセットと学習のプロジェクト' }).click()
   expect((await problems).status()).toBe(200)
-  const dialog = page.getByRole('dialog', { name: 'データセットとプロジェクト' })
-  const note = dialog.getByRole('region', { name: '選んだ問題の設定' })
+  const dialog = page.getByRole('dialog', { name: 'データセットと学習のプロジェクト' })
+  const note = dialog.getByRole('region', { name: '選んだ問題' })
   await expect(note.getByText('部品の需要')).toBeVisible()
   await expect(note.getByText(`(${opened})`)).toBeVisible()
   await page.keyboard.press('Escape')
@@ -224,7 +224,7 @@ test('選んだ問題を引き継いでモデルの作成・選定の段階を�
   await page.getByRole('button', { name: '明るい表示にする' }).click()
   await expect(canvas).not.toHaveClass(/\bdark\b/)
 
-  // 問題の設定の段階に戻ると, 同じ問題の設定を開く
+  // 問題の設定の段階に戻ると, 同じ問題を開く
   await stages.getByRole('link', { name: '問題の設定' }).click()
   await expect(page).toHaveURL(new RegExp(`/problem/problems/${opened}$`))
   await expect(page.getByRole('heading', { name: '部品の需要' })).toBeVisible()
@@ -232,8 +232,8 @@ test('選んだ問題を引き継いでモデルの作成・選定の段階を�
   expect(errors).toEqual([])
 })
 
-// 殻で選んだ問題の設定を引き継いで学習・評価の段階に移り, ML-Dashboard の画面が殻の問題の
-// 設定の欄を出し, 殻の明暗の切り替えが段階の画面に効くことを確かめる
+// 殻で選んだ問題を引き継いで学習・評価の段階に移り, ML-Dashboard の画面が殻で選んだ
+// 問題の欄を出し, 殻の明暗の切り替えが段階の画面に効くことを確かめる
 test('選んだ問題を引き継いで学習・評価の段階を開く', async ({ page }) => {
   const errors: string[] = []
   page.on('pageerror', (error) => errors.push(error.message))
@@ -241,7 +241,7 @@ test('選んだ問題を引き継いで学習・評価の段階を開く', async
     if (message.type() === 'error') errors.push(message.text())
   })
 
-  // 問題の設定を作って殻の欄で選ぶ
+  // 問題を作って殻の欄で選ぶ
   await page.goto('/api/auth?token=e2e-token')
   await expect(page).toHaveURL(/\/problem$/)
   await page.getByLabel(/^問題の名前/).fill('機械の故障')
@@ -252,7 +252,7 @@ test('選んだ問題を引き継いで学習・評価の段階を開く', async
   await expect(select).toHaveValue(opened)
 
   // 段階の並びで学習・評価に移ると, ML-Dashboard の画面が API を /api/train の下に呼んで開き,
-  // 殻で選んだ問題の設定を読む
+  // 殻で選んだ問題を読む
   const problem = page.waitForResponse(
     (response) => new URL(response.url()).pathname === `/api/train/problems/${opened}/project`,
   )
@@ -270,8 +270,8 @@ test('選んだ問題を引き継いで学習・評価の段階を開く', async
   await expect(page.getByText('ML-Dashboard', { exact: true })).toHaveCount(0)
   await expect(page.getByRole('button', { name: /表示にする$/ })).toHaveCount(1)
 
-  // 殻で選んだ問題の設定の欄 (まだ学習のプロジェクトを記録していないので, 開けない理由も出す)
-  const note = page.getByRole('region', { name: '選んだ問題の設定' })
+  // 殻で選んだ問題の欄 (まだ学習のプロジェクトを記録していないので, 開けない理由も出す)
+  const note = page.getByRole('region', { name: '選んだ問題' })
   await expect(note.getByText('機械の故障', { exact: true })).toBeVisible()
   await expect(note.getByText(opened, { exact: true })).toBeVisible()
   await expect(note.getByText(/プロジェクトの記録がありません/)).toBeVisible()
@@ -280,7 +280,7 @@ test('選んだ問題を引き継いで学習・評価の段階を開く', async
   // (e2e は DOM の型を持たないので, ページの中で動かす関数を文字列で渡す)
   const color = () =>
     page.evaluate<string>(
-      `getComputedStyle([...document.querySelectorAll('section')].find((section) => section.querySelector('h2')?.textContent === '選んだ問題の設定')).backgroundColor`,
+      `getComputedStyle([...document.querySelectorAll('section')].find((section) => section.querySelector('h2')?.textContent === '選んだ問題')).backgroundColor`,
     )
   const light = await color()
   await page.getByRole('button', { name: '暗い表示にする' }).click()
@@ -294,7 +294,7 @@ test('選んだ問題を引き継いで学習・評価の段階を開く', async
   await expect(page).toHaveURL(/\/train\/jobs$/)
   await expect(page.getByRole('heading', { name: 'ジョブ', exact: true })).toBeVisible()
 
-  // 問題の設定の段階に戻ると, 同じ問題の設定を開く
+  // 問題の設定の段階に戻ると, 同じ問題を開く
   await stages.getByRole('link', { name: '問題の設定' }).click()
   await expect(page).toHaveURL(new RegExp(`/problem/problems/${opened}$`))
   await expect(page.getByRole('heading', { name: '機械の故障' })).toBeVisible()
@@ -362,7 +362,7 @@ test('学習・評価の段階でブラウザの戻ると進むが段階の中�
   expect(errors).toEqual([])
 })
 
-// 殻の欄で問題の設定を選んだ状態でも, 段階をまたいで戻ると作り直した学習・評価の段階の画面が
+// 殻の欄で問題を選んだ状態でも, 段階をまたいで戻ると作り直した学習・評価の段階の画面が
 // 今の経路を保つ (殻の選びに合わせる見張りが一覧に移さない) ことを確かめる
 test('問題を選んだまま学習・評価の段階に戻っても今の経路を保つ', async ({ page }) => {
   const errors: string[] = []
@@ -371,7 +371,7 @@ test('問題を選んだまま学習・評価の段階に戻っても今の経�
     if (message.type() === 'error') errors.push(message.text())
   })
 
-  // 問題の設定を作って殻の欄で選ぶ
+  // 問題を作って殻の欄で選ぶ
   await page.goto('/api/auth?token=e2e-token')
   await expect(page).toHaveURL(/\/problem$/)
   await page.getByLabel(/^問題の名前/).fill('窯の温度')
@@ -393,7 +393,7 @@ test('問題を選んだまま学習・評価の段階に戻っても今の経�
   await expect(page).toHaveURL(/\/train\/jobs$/)
   await expect(jobs).toBeVisible()
 
-  // 問題の設定の段階に移ると, 選んだ問題の設定を開く
+  // 問題の設定の段階に移ると, 選んだ問題を開く
   await stages.getByRole('link', { name: '問題の設定' }).click()
   await expect(page).toHaveURL(new RegExp(`/problem/problems/${opened}$`))
   await expect(page.getByRole('heading', { name: '窯の温度' })).toBeVisible()
@@ -412,7 +412,7 @@ test('問題を選んだまま学習・評価の段階に戻っても今の経�
   await expect(page).toHaveURL(/\/train\/jobs$/)
   await expect(jobs).toBeVisible()
 
-  // 段階をまたいで進むと, 選んだ問題の設定の画面に戻る (一覧に移していれば, 進む先の履歴が消える)
+  // 段階をまたいで進むと, 選んだ問題の画面に戻る (一覧に移していれば, 進む先の履歴が消える)
   await page.goForward()
   await expect(page).toHaveURL(new RegExp(`/problem/problems/${opened}$`))
   await expect(page.getByRole('heading', { name: '窯の温度' })).toBeVisible()
@@ -487,8 +487,8 @@ test('学習・評価の段階を往復しても戻ると進むの見張りの�
   expect(errors).toEqual([])
 })
 
-// 殻で選んだ問題の設定を引き継いで推論の段階に移り, ML-Provide の画面が実験の一覧を殻の
-// 問題の設定で絞り, 殻の明暗の切り替えが段階の画面に効くことを確かめる
+// 殻で選んだ問題を引き継いで推論の段階に移り, ML-Provide の画面が実験の一覧を殻の
+// 問題で絞り, 殻の明暗の切り替えが段階の画面に効くことを確かめる
 test('選んだ問題を引き継いで推論の段階を開く', async ({ page }) => {
   const errors: string[] = []
   page.on('pageerror', (error) => errors.push(error.message))
@@ -496,7 +496,7 @@ test('選んだ問題を引き継いで推論の段階を開く', async ({ page 
     if (message.type() === 'error') errors.push(message.text())
   })
 
-  // 問題の設定を作って殻の欄で選ぶ
+  // 問題を作って殻の欄で選ぶ
   await page.goto('/api/auth?token=e2e-token')
   await expect(page).toHaveURL(/\/problem$/)
   await page.getByLabel(/^問題の名前/).fill('解約の見込み')
@@ -521,7 +521,7 @@ test('選んだ問題を引き継いで推論の段階を開く', async ({ page 
   await expect(page.getByText('ML-Provide', { exact: true })).toHaveCount(0)
   await expect(page.getByRole('button', { name: /表示にする$/ })).toHaveCount(1)
 
-  // 実験の一覧は殻で選んだ問題の設定で絞る (まだ実験が無いので, 無いと出す)
+  // 実験の一覧は殻で選んだ問題で絞る (まだ実験が無いので, 無いと出す)
   const experiments = page.waitForResponse((response) => {
     const url = new URL(response.url())
     return url.pathname === '/api/infer/experiments' && url.searchParams.get('project') === opened
@@ -529,7 +529,7 @@ test('選んだ問題を引き継いで推論の段階を開く', async ({ page 
   await page.getByRole('button', { name: '実験の一覧から登録' }).click()
   expect((await experiments).status()).toBe(200)
   const dialog = page.getByRole('dialog', { name: '実験の一覧から登録' })
-  await expect(dialog.getByText(`選んだプロジェクト ${opened}`)).toBeVisible()
+  await expect(dialog.getByText(`選んだ問題 ${opened}`)).toBeVisible()
   await expect(dialog.getByText(/一式を持つ実験がありません/)).toBeVisible()
   await dialog.getByRole('button', { name: '閉じる' }).click()
   await expect(dialog).toHaveCount(0)
@@ -552,7 +552,7 @@ test('選んだ問題を引き継いで推論の段階を開く', async ({ page 
   await expect(page).toHaveURL(/\/infer\/results$/)
   await expect(page.getByRole('heading', { name: '結果', exact: true })).toBeVisible()
 
-  // 問題の設定の段階に戻ると, 同じ問題の設定を開く
+  // 問題の設定の段階に戻ると, 同じ問題を開く
   await stages.getByRole('link', { name: '問題の設定' }).click()
   await expect(page).toHaveURL(new RegExp(`/problem/problems/${opened}$`))
   await expect(page.getByRole('heading', { name: '解約の見込み' })).toBeVisible()
@@ -663,7 +663,7 @@ test('殻の帯のキーで段階の中身を変えず, 書きかけを下書き
     void dialog.dismiss()
   })
 
-  // 殻の欄で替える 2 つの問題の設定を作り, 後で替える先から作って, 書きかけの元を選ぶ
+  // 殻の欄で替える 2 つの問題を作り, 後で替える先から作って, 書きかけの元を選ぶ
   await page.goto('/api/auth?token=e2e-token')
   await expect(page).toHaveURL(/\/problem$/)
   const select = page.getByLabel('問題', { exact: true })
