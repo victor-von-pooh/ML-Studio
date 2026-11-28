@@ -7,7 +7,10 @@ ML-CreateArchitecture の extra (外部のライブラリの部品の extra. pro
 あるかを確かめるのに使う (片方だけにある名前は, uv が警告だけを出して
 何も入れずに通るため). 殻の環境の Python で動かし, 入っている 2 つの
 パッケージの Provides-Extra を読む (名前の一覧を 2 か所に書かないため).
-名前が無いか知らない名前があれば, 選べる名前を出して 1 で終わる.
+project は殻が既定で入れる extra なので, 渡しても誤りにしない
+(ML-CreateArchitecture が出す単独の起動での入れ方をそのまま使えるように
+するため. 入れ直す対象から外すのは Makefile). 名前が無いか知らない名前が
+あれば, 選べる名前を出して 1 で終わる.
 --list を渡すと選べる名前を出して 0 で終わる (make extras-list)
 """
 import sys
@@ -17,7 +20,7 @@ from importlib.metadata import PackageNotFoundError, metadata
 APP = "ml-createarchitecture"
 LIBRARY = "ml-modelcontrol"
 
-# 殻が既定で入れる extra (選ぶ対象から外す)
+# 殻が既定で入れる extra (選べる名前の一覧から外し, 渡しても誤りにしない)
 DEFAULT_EXTRA = "project"
 
 # 選べる名前を出す印
@@ -79,8 +82,8 @@ def main() -> int:
     Returns
     ----------
     code: int
-        全て選べる名前か, 名前の一覧を出した場合は 0, 殻の環境が無いか,
-        名前が無いか知らない名前があれば 1
+        全て選べる名前か既定の extra か, 名前の一覧を出した場合は 0, 殻の
+        環境が無いか, 名前が無いか知らない名前があれば 1
     """
     # 殻の環境が無い場合と, 一覧を出す場合と, 名前が無い場合と, 知らない
     # 名前がある場合
@@ -93,7 +96,10 @@ def main() -> int:
     if chosen == [LIST_FLAG]:
         print(" ".join(known))
         return 0
-    unknown = [extra for extra in chosen if extra not in known]
+    unknown = [
+        extra for extra in chosen
+        if extra != DEFAULT_EXTRA and extra not in known
+    ]
     choices = f"選べる extra: {' '.join(known)}"
     if not chosen:
         print(f"EXTRAS に extra を書いてください (make extras-list). {choices}")
