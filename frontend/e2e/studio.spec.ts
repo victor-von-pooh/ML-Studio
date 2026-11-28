@@ -1,25 +1,35 @@
 import { expect, type Page, test } from '@playwright/test'
 
+import { STAGES, stageBase } from '../src/stages.ts'
+
 // 段階の並びの名前 (各段階の画面の頭の見出し h1 は, このどれか 1 つ. R12 の見出し)
-const STAGE_NAMES = ['問題の設定', 'データの分析', 'モデルの作成・選定', '学習・評価', '推論']
+const STAGE_NAMES = STAGES.map((stage) => stage.label)
+
+/** 段階の名前から段階を引く (名前が段階の並びに無ければ落とす) */
+function stageOf(name: string) {
+  const stage = STAGES.find((item) => item.label === name)
+  expect(stage, `段階の名前 ${name}`).toBeDefined()
+  return stage!
+}
 
 /** 段階の頭の画面の h1 が 1 つで, 開いた段階の名前 (段階の名前の 1 つ) であることを確かめる */
 async function expectStageHeading(page: Page, name: string) {
-  expect(STAGE_NAMES).toContain(name)
+  expect(STAGE_NAMES).toContain(stageOf(name).label)
   const heading = page.getByRole('heading', { level: 1 })
   await expect(heading).toHaveCount(1)
   await expect(heading).toHaveText(name)
 }
 
 /**
- * 段階の下の画面の h1 が 1 つで, パンくずの頭が段階の名前 (段階の名前の 1 つ) の段階の頭の
- * 画面へのリンクであることを確かめる (下の画面の h1 は開いた物の名前)
+ * 段階の下の画面の h1 が 1 つで, パンくずの頭が段階の名前で段階の頭の経路を指すリンクで
+ * あることを確かめる (下の画面の h1 は開いた物の名前)
  */
 async function expectSubHeading(page: Page, name: string) {
-  expect(STAGE_NAMES).toContain(name)
+  const stage = stageOf(name)
   await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
-  const crumbs = page.getByRole('navigation', { name: 'パンくず' })
-  await expect(crumbs.getByRole('link').first()).toHaveText(name)
+  const head = page.getByRole('navigation', { name: 'パンくず' }).getByRole('link').first()
+  await expect(head).toHaveText(stage.label)
+  await expect(head).toHaveAttribute('href', stageBase(stage.key))
 }
 
 // 殻を開き, 問題の設定の段階で問題を作り, 問題の欄で選んで開く
