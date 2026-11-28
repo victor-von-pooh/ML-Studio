@@ -2,10 +2,10 @@ import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 
 import { expect, test, type Page } from '@playwright/test'
 
-// 小さな見本で 5 つの段階を画面で通す. 前の段階の結果 (問題の設定に記録した学習の
+// 小さな見本で 5 つの段階を画面で通す. 前の段階の結果 (問題に記録した学習の
 // プロジェクト, 書き出したデータセット, 保存したモデルの定義, 学習の実験) を次の段階が
-// 殻で選んだ問題の設定から読むことを確かめ, 段階の間で値やファイルを手で写さない.
-// テストが決めるのは, 問題の設定に入れる手元のデータと学習のプロジェクトの書き出し先の
+// 殻で選んだ問題から読むことを確かめ, 段階の間で値やファイルを手で写さない.
+// テストが決めるのは, 問題に入れる手元のデータと学習のプロジェクトの書き出し先の
 // 2 つの場所だけ (どちらも段階の外から来る値). 推論するデータは, 学習に使ったデータセットの
 // テスト用の分割を推論の段階の画面で選ぶ
 
@@ -83,34 +83,37 @@ test('小さな見本で 5 つの段階を通し, 前の段階の結果を次の
   const exporting = page.getByRole('dialog')
   await exporting.getByLabel('書き出すディレクトリ (無ければ作る)').fill(projectDir)
   await exporting.getByRole('button', { name: '書き出す' }).click()
-  await expect(exporting.getByRole('status')).toContainText('この場所を問題の設定に記録しました')
+  await expect(exporting.getByRole('status')).toContainText('この場所を問題に記録しました')
   await page.keyboard.press('Escape')
   await expect(exporting).toHaveCount(0)
 
-  // 2. データの分析: 殻で選んだ問題の設定から始め, 記録した場所へデータセットを書き出す
+  // 2. データの分析: 殻で選んだ問題から始め, 記録した場所へデータセットを書き出す
   await goStage(page, 'データの分析', /\/data$/)
-  const card = page.getByRole('region', { name: '選んだ問題の設定' })
+  const card = page.getByRole('region', { name: '選んだ問題' })
   await expect(card.getByText('解約の引き止め')).toBeVisible()
-  await card.getByRole('button', { name: 'この問題の設定から始める' }).click()
+  await card.getByRole('button', { name: 'この問題から始める' }).click()
   await expect(page).toHaveURL(/\/data\/sources\/[^/]+$/, { timeout: 30_000 })
   await page.getByRole('tab', { name: '前処理と書き出し' }).click()
-  const exportDataset = page.getByRole('region', { name: 'プロジェクトへ書き出す' })
+  const exportDataset = page.getByRole('region', { name: '学習のプロジェクトへ書き出す' })
   await expect(
     exportDataset.getByText(`${projectDir}/outputs/dataset`, { exact: true }),
   ).toBeVisible()
-  await exportDataset.getByRole('button', { name: 'プロジェクトへ書き出す' }).click()
-  await expect(exportDataset.getByRole('status')).toContainText('プロジェクトへ書き出しました', {
-    timeout: 30_000,
-  })
+  await exportDataset.getByRole('button', { name: '学習のプロジェクトへ書き出す' }).click()
+  await expect(exportDataset.getByRole('status')).toContainText(
+    '学習のプロジェクトへ書き出しました',
+    {
+      timeout: 30_000,
+    },
+  )
 
-  // 3. モデルの作成・選定: 殻で選んだ問題の設定の記録からデータセットと保存先が入り,
+  // 3. モデルの作成・選定: 殻で選んだ問題の記録からデータセットと保存先が入り,
   // 入力と出力を作って学習のプロジェクトに保存する
   await goStage(page, 'モデルの作成・選定', /\/model$/)
   await expect(page.locator('.react-flow')).toBeVisible()
-  await page.getByRole('button', { name: 'データセットとプロジェクト' }).click()
-  const project = page.getByRole('dialog', { name: 'データセットとプロジェクト' })
+  await page.getByRole('button', { name: 'データセットと学習のプロジェクト' }).click()
+  const project = page.getByRole('dialog', { name: 'データセットと学習のプロジェクト' })
   await expect(
-    project.getByRole('region', { name: '選んだ問題の設定' }).getByText(`(${opened})`),
+    project.getByRole('region', { name: '選んだ問題' }).getByText(`(${opened})`),
   ).toBeVisible()
   await expect(project.getByLabel('データセットのディレクトリ')).toHaveValue(
     `${projectDir}/outputs/dataset`,
@@ -120,7 +123,7 @@ test('小さな見本で 5 つの段階を通し, 前の段階の結果を次の
   await expect(
     project.getByRole('region', { name: 'データセットから入力と出力を作る' }).getByRole('status'),
   ).toContainText('データセットから入れました', { timeout: 20_000 })
-  const saving = project.getByRole('region', { name: 'プロジェクトに保存' })
+  const saving = project.getByRole('region', { name: '学習のプロジェクトに保存' })
   await expect(
     saving
       .getByRole('group', { name: '保存先' })
@@ -131,9 +134,9 @@ test('小さな見本で 5 つの段階を通し, 前の段階の結果を次の
   await project.getByRole('button', { name: '閉じる' }).click()
   await expect(page.locator('header').getByText('誤り 0 件')).toBeVisible({ timeout: 20_000 })
 
-  // 4. 学習・評価: 殻で選んだ問題の設定が記録したプロジェクトを登録し, 1 エポックだけ学習する
+  // 4. 学習・評価: 殻で選んだ問題が記録した学習のプロジェクトを登録し, 1 エポックだけ学習する
   await goStage(page, '学習・評価', /\/train$/)
-  const note = page.getByRole('region', { name: '選んだ問題の設定' })
+  const note = page.getByRole('region', { name: '選んだ問題' })
   await expect(note.getByRole('group', { name: '記録したプロジェクト' })).toHaveText(
     `記録したプロジェクト: ${projectDir}`,
   )
@@ -154,12 +157,12 @@ test('小さな見本で 5 つの段階を通し, 前の段階の結果を次の
   await expect(settled).toBeVisible({ timeout: 180_000 })
   expect(await settled.getAttribute('aria-label'), await main.innerText()).toBe('状態: 完了')
 
-  // 5. 推論: 殻で選んだ問題の設定の実験から一式を登録し, 学習に使ったデータセットの
+  // 5. 推論: 殻で選んだ問題の実験から一式を登録し, 学習に使ったデータセットの
   // テスト用の分割を選んで推論する (場所は推論の段階が一式の実験から見つける)
   await goStage(page, '推論', /\/infer$/)
   await page.getByRole('button', { name: '実験の一覧から登録' }).click()
   const experiments = page.getByRole('dialog', { name: '実験の一覧から登録' })
-  await expect(experiments.getByText(`選んだプロジェクト ${opened}`)).toBeVisible()
+  await expect(experiments.getByText(`選んだ問題 ${opened}`)).toBeVisible()
   await experiments.getByRole('button', { name: /^解約の引き止め \(.+\) を登録$/ }).click()
   await expect(page).toHaveURL(/\/infer\/bundles\/[^/]+$/, { timeout: 30_000 })
   await page.getByRole('radio', { name: '元のデータセットのテスト用の分割' }).check()
