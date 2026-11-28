@@ -10,7 +10,8 @@ permissions:
 
 jobs:
   # 文書とファイルの決まり (触れてよいリポジトリ, 手元のパス, TODO.md の形) と,
-  # 殻の木の中の共通のライブラリの版 (docs/DESIGN.md の表)
+  # 殻の木の中の共通のライブラリの版 (docs/DESIGN.md の表) と,
+  # 各アプリの共通の部品の写しと殻の正の差 (R12. 差を出すだけで落とさない)
   docs:
     runs-on: ubuntu-latest
     steps:
@@ -22,6 +23,7 @@ jobs:
           python-version: "3.13"
       - run: python scripts/check_docs.py
       - run: python scripts/check_versions.py
+      - run: python scripts/check_parts.py
 
   # 殻のバックエンド (ML-Pathfinder, ML-Fathom, ML-CreateArchitecture,
   # ML-Dashboard, ML-Provide と, それらが submodule で持つ ML-EDA, ML-Quest,
@@ -72,6 +74,8 @@ jobs:
           cache: pnpm
           cache-dependency-path: frontend/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
+      # 共通の部品の正 (parts/) を ML-Pathfinder の画面の道具と設定で確かめる (R12)
+      - run: bash ../scripts/lint_parts.sh
       - run: pnpm lint
       - run: pnpm format:check
       - run: pnpm typecheck
