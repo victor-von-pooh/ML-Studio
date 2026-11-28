@@ -2,20 +2,23 @@
 5 つのアプリの画面の共通の部品が, 殻の正のファイルの写しかを確かめる
 スクリプト
 
-殻の parts/common.tsx (docs/DESIGN.md の R12) と, 載せた各アプリの
-frontend/src/components/common.tsx を SHA-256 で比べ, 合う, 違う, 無いを
-アプリごとに出す. 違うときは差の行の数も出す. 今は差を出すだけで 0 で
-終わり, --strict を付けると差があるときに 1 で終わる. submodule を取って
-から (git submodule update --init) 動かす
+殻の parts/ の正のファイル (docs/DESIGN.md の R12) と, 載せた各アプリの
+frontend/src/components/ の同じ名前の写しを SHA-256 で比べ, 合う, 違う,
+無いをアプリとファイルごとに出す. 違うときは差の行の数も出す. 既定は差を
+出すだけで 0 で終わり, --strict を付けると差があるときに 1 で終わる. 正の
+ファイルが無いときは 2 で終わる. submodule を取ってから
+(git submodule update --init) 動かす
 """
+import argparse
 import difflib
 import hashlib
 import sys
 from pathlib import Path
 
-# 殻の正のファイルと, 各アプリの写しの場所 (アプリのルートから)
-CANON = Path("parts") / "common.tsx"
-COPY = Path("frontend") / "src" / "components" / "common.tsx"
+# 殻の正のファイルの置き場と名前, 各アプリの写しの置き場 (アプリのルートから)
+CANON_DIR = Path("parts")
+NAMES = ("common.tsx", "common-utils.ts")
+COPY_DIR = Path("frontend") / "src" / "components"
 
 # 載せた 5 つのアプリ (段階の並び)
 APPS = (
@@ -79,7 +82,7 @@ def changed_lines(canon: Path, copy: Path) -> int:
 
 def report(root: Path) -> list[str]:
     """
-    アプリごとの比べの結果を作る関数
+    アプリとファイルごとの比べの結果を作る関数
 
     Parameters
     ----------
@@ -89,29 +92,31 @@ def report(root: Path) -> list[str]:
     Returns
     ----------
     differences: list[str]
-        正と違うか写しの無いアプリの説明 (合うアプリは含まない)
+        正と違うか写しの無い所の説明 (合う所は含まない)
     """
-    # 正のハッシュとアプリごとの比べ
-    canon = root / CANON
-    expected = digest(canon)
-    print(f"{CANON}: {expected[:12]}")
+    # 正のハッシュと, アプリとファイルごとの比べ
     differences = []
-    for app in APPS:
-        copy = root / app / COPY
-        if not (root / app / "frontend").is_dir():
-            line = f"{app}: submodule を取っていません"
-        elif not copy.is_file():
-            line = f"{app}: {COPY} がありません"
-        elif digest(copy) != expected:
-            line = (
-                f"{app}: {COPY} が正と違います "
-                f"({changed_lines(canon, copy)} 行)"
-            )
-        else:
-            print(f"{app}: 合っています")
-            continue
-        print(line)
-        differences.append(line)
+    for name in NAMES:
+        canon = root / CANON_DIR / name
+        expected = digest(canon)
+        print(f"{CANON_DIR / name}: {expected[:12]}")
+        for app in APPS:
+            copy = root / app / COPY_DIR / name
+            place = COPY_DIR / name
+            if not (root / app / "frontend").is_dir():
+                line = f"{app}: submodule を取っていません"
+            elif not copy.is_file():
+                line = f"{app}: {place} がありません"
+            elif digest(copy) != expected:
+                line = (
+                    f"{app}: {place} が正と違います "
+                    f"({changed_lines(canon, copy)} 行)"
+                )
+            else:
+                print(f"{app}: {place} は合っています")
+                continue
+            print(line)
+            differences.append(line)
 
     return differences
 
@@ -127,13 +132,28 @@ def main() -> int:
     Returns
     ----------
     code: int
-        --strict のときに差があれば 1, 他は 0
+        正のファイルが無ければ 2, --strict のときに差があれば 1, 他は 0
     """
-    # 差の報告と, 落とすかどうか
+    # 引数 (知らない引数は argparse が 2 で止める) と正のファイルの有無
+    parser = argparse.ArgumentParser(
+        description="各アプリの共通の部品の写しを殻の正と比べる"
+    )
+    parser.add_argument(
+        "--strict", action="store_true", help="差があれば 1 で終わる"
+    )
+    args = parser.parse_args()
     root = Path(__file__).resolve().parent.parent
+    missing = [name for name in NAMES
+               if not (root / CANON_DIR / name).is_file()]
+    if missing:
+        for name in missing:
+            print(f"正のファイル {CANON_DIR / name} がありません",
+                  file=sys.stderr)
+        return 2
+
+    # 差の報告と, 落とすかどうか
     differences = report(root)
-    strict = "--strict" in sys.argv[1:]
-    code = 1 if strict and differences else 0
+    code = 1 if args.strict and differences else 0
 
     return code
 

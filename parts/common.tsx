@@ -2,8 +2,9 @@
  * 5 つの段階の画面の共通の部品 (殻の docs/DESIGN.md の R12).
  *
  * 殻の parts/common.tsx が正で, 各アプリは frontend/src/components/common.tsx に
- * そのまま写す (1 字でも違うと殻の CI が差を出す). 直すときは殻の正を直してから写す.
- * 段階に固有の部品は各アプリの components/ui.tsx に置き, そこから common を書き出す
+ * そのまま写す (1 字でも違うと殻の CI が差を出す). 部品でない関数は
+ * common-utils.ts に置く. 直すときは殻の正を直してから写す. 段階に固有の部品は
+ * 各アプリの components/ui.tsx に置き, そこから common を書き出す
  */
 import clsx from 'clsx'
 import { AlertTriangle, Loader2, type LucideIcon } from 'lucide-react'
@@ -14,8 +15,10 @@ import {
   useState,
   type ButtonHTMLAttributes,
   type KeyboardEvent,
+  type MouseEvent,
   type ReactNode,
   type Ref,
+  type RefObject,
 } from 'react'
 
 /**
@@ -114,45 +117,6 @@ export function Spinner({ label = '読み込み中' }: { label?: string }) {
 }
 
 /**
- * API の誤りの応答の本文から画面の文を作る. detail が文ならそのまま, 画面の文
- * (message) を持つ形ならその文, 入力の検証の誤り (422 の配列) なら 1 件ずつ
- * 「欄: 理由」を 1 行にして改行でつなぐ. JSON でなければ状態の番号と文
- *
- * @param status - 応答の状態の番号
- * @param statusText - 応答の状態の文
- * @param body - 応答の本文を JSON として読んだもの (読めなければ undefined)
- */
-export function errorText(status: number, statusText: string, body: unknown): string {
-  if (body && typeof body === 'object' && 'detail' in body) {
-    const detail = (body as { detail: unknown }).detail
-    if (typeof detail === 'string') return detail
-    if (Array.isArray(detail)) {
-      return detail
-        .map((item: unknown) => {
-          const record = (item && typeof item === 'object' ? item : {}) as {
-            loc?: unknown
-            msg?: unknown
-          }
-          // 置き場所の印 (body, query, path) は除き, 欄の名前だけを . でつなぐ
-          const loc = Array.isArray(record.loc) ? record.loc : []
-          const field = loc
-            .filter((part) => part !== 'body' && part !== 'query' && part !== 'path')
-            .join('.')
-          const message = typeof record.msg === 'string' ? record.msg : ''
-          return field ? `${field}: ${message}` : message
-        })
-        .join('\n')
-    }
-    if (detail && typeof detail === 'object' && 'message' in detail) {
-      const message = (detail as { message: unknown }).message
-      if (typeof message === 'string') return message
-    }
-    return JSON.stringify(detail)
-  }
-  return `${status} ${statusText}`
-}
-
-/**
  * 誤りの表示. 操作の結果の誤りだけ読み上げ (live) の対象にする. 文の改行は
  * そのまま出す (複数の誤りを 1 行ずつ読めるように)
  */
@@ -216,7 +180,7 @@ export function StatTile({
       <div className="truncate text-xs font-medium text-ink-3" title={label}>
         {label}
       </div>
-      <div className="tabular mt-1 truncate text-xl font-semibold text-ink">{value}</div>
+      <div className="tabular-nums mt-1 truncate text-xl font-semibold text-ink">{value}</div>
       {hint && (
         <div className="mt-0.5 truncate text-xs text-ink-3" title={hint}>
           {hint}
@@ -232,16 +196,10 @@ export interface TabItem<T extends string> {
   count?: number
 }
 
-/** タブの中身の要素に付ける属性 (選んだタブと結び付ける) */
-export function tabPanelProps(idBase: string, value: string) {
-  return {
-    id: `${idBase}-panel`,
-    role: 'tabpanel',
-    'aria-labelledby': `${idBase}-tab-${value}`,
-  } as const
-}
-
-/** タブ. 左右の矢印キーと Home, End で移り, 中身は tabPanelProps で結び付ける */
+/**
+ * タブ. 左右の矢印キーと Home, End で移り, 中身は common-utils の tabPanelProps で
+ * 結び付ける
+ */
 export function Tabs<T extends string>({
   items,
   value,
@@ -311,7 +269,7 @@ export function Tabs<T extends string>({
           >
             {item.label}
             {item.count !== undefined && (
-              <span className="tabular rounded-full bg-surface-2 px-1.5 text-xs text-ink-2">
+              <span className="tabular-nums rounded-full bg-surface-2 px-1.5 text-xs text-ink-2">
                 {item.count}
               </span>
             )}
@@ -360,28 +318,38 @@ export function PageHeader({
 /**
  * 画面の上に重ねる対話の枠. ブラウザの dialog を showModal で開き, 見出しを名前に
  * する. Esc, 外 (背景), 閉じるのボタンで閉じ, 閉じたら開く前の所へ focus を戻す.
- * busy の間は閉じない (処理の結果を見せるため). 部品の木の中に置き, portal に
- * 出さない (data-stage-root の外に出すと, R9 で中のキーを扱えなくなるため)
+ * busy の間は閉じない (処理の結果を見せるため). 最初の focus は initialFocus の
+ * 要素, 無ければブラウザの決まり (autoFocus の要素, 無ければ最初の focus できる
+ * 要素). 部品の木の中に置き, portal に出さない (data-stage-root の外に出すと,
+ * R9 で中のキーを扱えなくなるため)
  */
 export function Dialog({
   title,
   onClose,
   children,
   busy = false,
+  initialFocus,
 }: {
   title: string
   onClose: () => void
   children: ReactNode
   /** 処理の途中か (途中は閉じない) */
   busy?: boolean
+  /** 開いたときに focus を置く要素 */
+  initialFocus?: RefObject<HTMLElement | null>
 }) {
   const ref = useRef<HTMLDialogElement>(null)
+  // 押し始めが背景だったか (枠の中で押し始めて外で離したときに閉じないため)
+  const downOnBackdrop = useRef(false)
   const titleId = useId()
   // 開く前に操作していた所 (最初の描画のときに覚え, 開発時の 2 回の実行でも
   // 枠の中を覚えない)
   const [before] = useState(() => document.activeElement)
+  // 最初の focus の先 (開いたときだけ読む)
+  const [focusTarget] = useState(() => initialFocus)
   useEffect(() => {
     ref.current?.showModal()
+    focusTarget?.current?.focus()
     return () => {
       // 閉じたら (枠を外したら) そこに戻す. 開いた所を作り直した場合は, 同じ印
       // (data-return) の新しい要素に戻す
@@ -391,14 +359,24 @@ export function Dialog({
         else if (mark) document.querySelector<HTMLElement>(`[data-return="${mark}"]`)?.focus()
       })
     }
-  }, [before])
+  }, [before, focusTarget])
+  // 押した位置が枠の矩形の外か
+  const outside = (event: MouseEvent<HTMLDialogElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect()
+    return (
+      event.clientX < rect.left ||
+      event.clientX > rect.right ||
+      event.clientY < rect.top ||
+      event.clientY > rect.bottom
+    )
+  }
   return (
     <dialog
       ref={ref}
       aria-labelledby={titleId}
-      // 途中の Esc はブラウザに閉じさせない
+      // 途中の Esc はブラウザに閉じさせない. 中の対話の知らせは見ない
       onCancel={(event) => {
-        if (busy) event.preventDefault()
+        if (event.target === ref.current && busy) event.preventDefault()
       }}
       // 中の対話 (ファイルを選ぶなど) の閉じる知らせは, 外の枠を閉じない. 途中に
       // ブラウザが閉じた場合 (Esc を続けて押したなど) は開き直す
@@ -407,7 +385,15 @@ export function Dialog({
         if (busy) ref.current.showModal()
         else onClose()
       }}
-      onClick={(event) => event.target === ref.current && !busy && onClose()}
+      onPointerDown={(event) => {
+        downOnBackdrop.current = event.target === ref.current
+      }}
+      // 背景で押し始めて背景で離したときだけ閉じる
+      onClick={(event) => {
+        const fromBackdrop = downOnBackdrop.current
+        downOnBackdrop.current = false
+        if (event.target === ref.current && fromBackdrop && outside(event) && !busy) onClose()
+      }}
       className="m-auto w-[min(48rem,92vw)] rounded-lg border border-line bg-surface p-0 text-ink backdrop:bg-black/40"
     >
       <div className="flex items-center justify-between border-b border-line px-4 py-2">
