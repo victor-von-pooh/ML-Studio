@@ -53,6 +53,22 @@ export function errorText(status: number, statusText: string, body: unknown): st
   return JSON.stringify(detail)
 }
 
+/**
+ * 欄の aria-describedby の値を作る. 渡した id のうち空 (空白だけを含む) でない
+ * ものを空白でつなぎ,
+ * 1 つも無ければ undefined を返す (説明と欄の下の誤りと ErrorBox を, 出ている
+ * ものだけ結ぶため)
+ *
+ * @param ids - 結ぶ要素の id (出ていない要素は undefined, null, false, 空の文)
+ */
+export function describedBy(...ids: (string | false | null | undefined)[]): string | undefined {
+  const value = ids
+    .filter((id): id is string => typeof id === 'string' && id.trim() !== '')
+    .map((id) => id.trim())
+    .join(' ')
+  return value === '' ? undefined : value
+}
+
 /** タブの中身の要素に付ける属性 (選んだタブと結び付ける) */
 export function tabPanelProps(idBase: string, value: string) {
   return {

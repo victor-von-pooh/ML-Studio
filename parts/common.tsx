@@ -22,10 +22,18 @@ import {
 } from 'react'
 
 /**
+ * 欄の枠の色の形. accent は知らせの欄, warning は決めてほしいことなどの注意を促す
+ * 欄, highlight は並びの中で 1 つを目立たせる欄 (色だけで違いを表さず, 文や印と
+ * 併せて使う)
+ */
+export type CardTone = 'default' | 'accent' | 'warning' | 'highlight'
+
+/**
  * 枠で囲んだ欄. 見出し (title) を持つときは, 見出しを名前にした区域 (region) として
  * 読み上げる (欄を見出しの名前で探せるように). 見出しの無い欄は名前を持たない.
- * 見出しにボタンなどを含むときは name で区域の名前を渡す. 数の決まらない欄は
- * landmark={false} で区域にしない (区域が並び過ぎないように)
+ * 見出しにボタンや件数などを含むときは name で変わらない区域の名前を渡す. 数の
+ * 決まらない欄は landmark={false} で区域にしない (区域が並び過ぎないように). 枠の
+ * 色は tone で決め, className は置き場所と大きさ (余白, 格子の幅など) だけに使う
  */
 export function Card({
   title,
@@ -35,6 +43,7 @@ export function Card({
   padded = true,
   name,
   landmark = true,
+  tone = 'default',
 }: {
   title?: ReactNode
   actions?: ReactNode
@@ -45,6 +54,8 @@ export function Card({
   name?: string
   /** 区域 (region) にするか. false なら見出しは h2 のままで名前を持たない */
   landmark?: boolean
+  /** 枠の色の形 (既定は default) */
+  tone?: CardTone
 }) {
   const titleId = useId()
   const region = landmark && Boolean(name || title)
@@ -53,12 +64,21 @@ export function Card({
       aria-label={region && name ? name : undefined}
       aria-labelledby={region && !name ? titleId : undefined}
       className={clsx(
-        'rounded-xl border border-line bg-surface shadow-sm shadow-black/[0.03]',
+        'rounded-xl shadow-sm shadow-black/[0.03]',
+        tone === 'default' && 'border border-line bg-surface',
+        tone === 'accent' && 'border border-accent/30 bg-accent-soft',
+        tone === 'warning' && 'border border-warning/60 bg-surface',
+        tone === 'highlight' && 'border-2 border-accent bg-surface',
         className,
       )}
     >
       {(title || actions) && (
-        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-2.5">
+        <header
+          className={clsx(
+            'flex flex-wrap items-center justify-between gap-3 border-b px-4 py-2.5',
+            tone === 'accent' ? 'border-accent/30' : 'border-line',
+          )}
+        >
           <h2 id={titleId} className="text-sm font-semibold text-ink">
             {title}
           </h2>
@@ -117,21 +137,26 @@ export function Spinner({ label = '読み込み中' }: { label?: string }) {
 }
 
 /**
- * 誤りの表示. 操作の結果の誤りだけ読み上げ (live) の対象にする. 文の改行は
- * そのまま出す (複数の誤りを 1 行ずつ読めるように)
+ * 誤りの表示 (API の誤り). 操作の結果の誤りだけ読み上げ (live) の対象にする. 文の
+ * 改行はそのまま出す (複数の誤りを 1 行ずつ読めるように). id を渡すと, 欄の
+ * aria-describedby から結べる (結ぶときは live={false} にする. 二度読まれるため)
  */
 export function ErrorBox({
   error,
   children,
   live = true,
+  id,
 }: {
   error: unknown
   children?: ReactNode
   live?: boolean
+  /** 要素の id (欄の aria-describedby から結ぶため) */
+  id?: string
 }) {
   const message = error instanceof Error ? error.message : String(error)
   return (
     <div
+      id={id}
       role={live ? 'alert' : undefined}
       className="flex items-start gap-2 rounded-lg border border-critical/30 bg-critical/5 px-4 py-3 text-sm text-ink"
     >
@@ -144,22 +169,42 @@ export function ErrorBox({
   )
 }
 
-/** 何も無いときの表示 (見出しと, 次にすることの説明) */
+/**
+ * 欄の下の短い誤り (入力の確かめの誤り). 読み上げ (role) は持たず, 欄の
+ * aria-describedby から id で結び, 欄に aria-invalid を付ける
+ */
+export function FieldError({ id, children }: { id: string; children: ReactNode }) {
+  return (
+    <p id={id} className="mt-1 text-xs text-critical-text">
+      {children}
+    </p>
+  )
+}
+
+/**
+ * 何も無いときの表示 (見出しと, 次にすることの説明). 見出しの段は level で決める.
+ * 画面の h1 の直下と見出しの無い Card の中は既定の 2, 見出しのある Card と Dialog
+ * の中は 3 にする (見出しの段を飛ばさないため)
+ */
 export function EmptyState({
   icon: Icon,
   title,
   children,
+  level = 2,
 }: {
   icon: LucideIcon
   title: string
   children?: ReactNode
+  /** 見出しの段 (既定は 2) */
+  level?: 2 | 3
 }) {
+  const Heading = level === 3 ? 'h3' : 'h2'
   return (
     <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-line px-6 py-14 text-center">
       <div className="rounded-full bg-accent-soft p-3 text-accent-text">
         <Icon className="size-6" aria-hidden />
       </div>
-      <h3 className="text-base font-semibold">{title}</h3>
+      <Heading className="text-base font-semibold">{title}</Heading>
       {children && <div className="max-w-md text-sm text-ink-2">{children}</div>}
     </div>
   )
@@ -286,7 +331,9 @@ export function Tabs<T extends string>({
 
 /**
  * 画面の頭の見出し (h1). 段階の頭の画面は段階の名前を title にし, 下の画面は
- * 物の名前を title にして, breadcrumb の頭に段階の頭の画面へのリンクを置く
+ * 物の名前を title にして, breadcrumb の頭に段階の頭の画面へのリンクを置く.
+ * 読み込み中 (物の名前が分からない間は段階の名前), 開けないとき (「<物>を
+ * 開けません」), 知らない経路 (段階の名前) の画面にも置く
  */
 export function PageHeader({
   title,
